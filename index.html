@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Rotulado · KLYNEA</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:Inter,system-ui,sans-serif;background:#e8e2d8;color:#1c1a17;-webkit-font-smoothing:antialiased}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media print{
+  body *{visibility:hidden}
+  #print-area,#print-area *{visibility:visible}
+  #print-area{position:fixed;top:0;left:0;width:210mm}
+  @page{size:210mm 297mm;margin:0}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const {useState,useRef,useEffect,useMemo}=React;
+const PER_PAGE=6;
+const idHash=n=>"RT-"+String(10245+(n%1000)).padStart(5,"0");
+const PALETTE=["#c0532a","#1a1815","#2f6b3b","#1f5a8a","#6a3b7a","#b8862b","#4a5560","#a93b6e"];
+const PRODUCTS=["TOBILLERA NOVAFIT","RODILLERA NOVAFIT","MUÑEQUERA NOVAFIT","TELAS REFLECTIVAS NOVASHOP"];
+const AGENCIES=["Chachapoyas Co Dos De Mayo","Chachapoyas Jr Grau","Bagua Capital","Pedro Ruiz","Luya","Bagua Grande","Huaraz","Carhuaz","Casma","Huarmey","Caraz","Av Enrique Meiggs","Av Jose Galvez","Santa","Ovalo De La Familia","Tres De Octubre","Garatea","Yungay","Abancay","Andahuaylas","Av Parra 379 Co","Mall Lambramani","Av Lima","Plaza La Tomilla","Av Charcani","Ciudad Municipal","Av Pumacahua","Zamacola","Av Los Incas","Autopista La Joya","Jacobo Hunter","El Cruce La Joya","Mariano Melgar","Miraflores Arequipa","Urb Manuel Prado","Av Jesus","Uchumayo","Yura","Camana","Chala","Aplao","Mollendo Co","Cercado Mollendo","Cocachacra","Matarani","Ayacucho Co","Carmen Alto","San Juan Bautista","Jesus Nazareno","Huanta","Cajamarca Co","Barrio San Jose","Huambocancha Baja","Baños Del Inca","Cajabamba","Celendin","Chota","Cutervo","Bambamarca","Jaen","San Ignacio","San Marcos","Callao Faucett","Av Quilca","Av Bertello Callao","Av Saenz Peña","Bellavista Callao","Ovalo La Perla","Mi Peru","Tica Tica","San Jeronimo","Cachimayo - San Sebastian","Via Expresa Sur","Cusco Co Via Evitamiento","Av Antonio Lorena","Huancaro","Cusco Parque Industrial","Av Pachacutec","Velasco Astete","Anta Izcuchaca","Cusco Calca","Pisac","Sicuani Co Ovalo San Andres","Sicuani Av Manuel Callo","Combapata","Santo Tomas","Espinar","Quillabamba","Urcos","Ocongate","Oropesa","Cusco Urubamba","Chinchero","Huancavelica","Amarilis Co","Ambo","Tingo Maria Co Buenos Aires","Tingo María - Leoncio Prado","Aucayacu","Ica San Joaquin","La Tinguiña","Parcona","Salas Ica","Ica Santiago","Prolong Luis Massaro","Calle Los Angeles","Chincha Pueblo Nuevo","Sunampe Co","San Juan De Marcona","La Villa Cruce Pisco","San Clemente","Huancayo Jr. Ica","Terminal Los Andes","San Carlos Huancayo","Chilca Huancayo","Ciudad Universitaria","Pilcomayo","San Agustin De Cajas","Concepcion","La Merced","Perene","Pichanaki","San Ramón","Jauja","Satipo","Mazamari","Pangoa","Tarma","La Oroya","Chupaca","Calle Liverpool","Trujillo La Perla","Atahualpa","Calle Santa Cruz - America Sur","Av Hnos Uceda - America Norte","Ovalo Papal","Av Hermanos Angulo","Alto Trujillo","Ovalo Huanchaco Co","El Milagro","Av Tahuantinsuyo","Wichanzao","Moche","Paijan","Casa Grande","Chepen","Pacanguilla","Otuzco","San Pedro De Lloc","Ciudad De Dios","Guadalupe La Libertad","Pacasmayo Las Palmeras","Pacasmayo Centro","Huamachuco","Puente Viru","Viru Centro","Chao","Miraflores Chiclayo","Mariscal Nieto","Av Las Americas","Chongoyape","Calle Tahuantinsuyo","Monsefu","Pimentel","Reque","Patapo","Pomalca","Tuman","Ferreñafe","Lambayeque Panamericana","Lambayeque Centro","Jayanca","Morrope","Motupe","Olmos","Tucume","Lima Av Tingo María","Ancon","Huaycan Entrada","Puente Santa Anita","Los Sauces","Santa Clara","Av Esperanza","Av El Sol","Av Venezuela","Jr. Huaraz - Breña","Carabayllo Establo","Tungasuca","Av Tupac Amaru Km. 19","Av. Tupac Amaru Km. 23.5","Santo Domingo","El Progreso Km 22","Chorrillos Co","Chorrillos Los Faisanes","Las Delicias De Villa","Megaplaza Chorrillos","Av. Trapiche","Año Nuevo","Av Tupac Amaru Cdra. 57","Puente Nuevo","Jiron Ancash","La Cincuenta","Plaza Norte Entregas","Megaplaza Independencia","Jesus Maria","Real Plaza Salaverry","Av La Fontana","Los Fresnos","Parque La Molina","Av Mexico Co","Av. Canada","Av. Las Palmeras","Pro","Av. Angelica Gamarra","Av Huandoy Con Marañon","Chosica","Huachipa Co","Santa María De Huachipa","Nuevo Lurin","Puente Lurin","Magdalena Del Mar","Av. La Marina","Av Bolivar","Larcomar","La Curva De Manchay","Manchay Tres Marias","Puente Arica","Zapallal","Ovalo Puente Piedra","Av Buenos Aires","Punta Hermosa","Rimac Av. Amancaes","Aviacion 2819","Av. Angamos","Av. 13 De Enero","Cruz De Motupe","Sjl- Las Flores","Sjl-Av.Proceres","Canto Grande","Los Pinos","Bayovar","Campoy","Jr Chinchaysuyo Cdra 4","Av Malecon Checa Cdra. 1","Av Circunvalacion Sjl","Atocongo","Maria Auxiliadora","Av. Canevaro","Av Miguel Grau Pamplona Alta","Av San Juan Pamplona Alta","Fiori","Av Bertello Smp","Smp-Av. Proceres","Av. Peru 15","Av. Lima Cdra 38","Av. Gerardo Unger Cdra 64","Av Jose Granda Cdra 38","Av Jose Granda Cdra. 25","Av. Universitaria Cdra. 16","Av. Huarochirí","Av Santa Rosa - Sta Anita","Jr Cesar Vallejo","Santa Rosa","Higuereta","Surco Mateo Pumacahua","Rep. De Panama","Av. Principal","Av. Cesar Vallejo","Av. Pastor Sevilla","Óvalo Mariátegui","01 De Mayo","Las Conchitas","Pesquero","Av. Lima - Vmt","Av. Villa Maria","Nueva Esperanza Vmt","Barranca","Paramonga","Supe","Cañete San Vicente","Cañete Imperial","Mala","Nuevo Imperial Co","Huaral","Chancay","Jicamarca","Salaverry Huacho Co","Huacho Av Indacochea","Huaura","Sayan","Iquitos Jr Francisco Bolognesi","Iquitos Av Tupac Amaru","Punchana","Av Jose A. Quiñones","Ctra Iquitos Nauta","Yurimaguas","Tambopata Av La Joya Co","Av 15 De Agosto","Tambopata Av Circunvalacion","Mazuko","El Triunfo","Iberia","San Antonio","Calle Lima","Chen Chen","Ilo Co Pampa Inalambrica","Ilo Puerto","Ilo Pacocha","Cerro De Pasco","Huayllay","Oxapampa","Villa Rica","Av. Grau","Av Raul Mata La Cruz- Dos Grifos","Av Tacna","Tacala","Catacaos","La Union","Las Lomas","Tambo Grande","Aahh Santa Rosa Piura","Ayabaca","Paimas","Huancabamba","Chulucanas","Morropon","Paita","Sullana Santa Rosa","Sullana Co Zona Industrial","Bellavista Sullana","Ignacio Escudero","Talara Co Asoc California","Talara Alta 9 De Octubre","Talara Baja Parque 22","El Alto","Los Organos","Máncora","Sechura","Av Costanera","Salcedo","Alto Puno","Av 4 De Noviembre Co","Azangaro","Desaguadero","Ilave","Ayaviri","Jr. Mama Ocllo","Las Mercedes","Av. Lampa","Av. Modesto Borda","Av Independencia","Jr Agustin Gamarra","Av Heroes Del Pacifico Co","Ovalo Orquideas Co","Moyobamba Centro","Soritor","San Martin Bellavista","San Jose De Sisa","Saposoa","Lamas","Juanjui Centro","Picota","Rioja","Segunda Jerusalen","Nueva Cajamarca","Pardo Miguel Naranjos","Tarapoto Co Jr Alfonso Ugarte","Jr Leoncio Prado","Jr. Tahuantinsuyo","Jr. Ramón Castilla","Tarapoto La Banda De Shilcayo","Tarapoto Jr. Sargento Lorez","Av Fernando Belaunde","Jr Fredy Aliaga Co","Uchiza","Tacna Co Av. Jorge Basadre","Av Vigil","Av. Arias Araguez","Av Ejercito","Pocollay","Tacna Ciudad Nueva","Villa San Francisco","Av. Municipal","Viñanis","Tumbes - Av Arica","Tumbes Puyango","Pampa Grande Tumbes","Corrales","La Cruz Tumbes","Zorritos","Zarumilla","Aguas Verdes","Calleria Jr Jose Galvez","Calleria Av Saenz Peña","Pucallpa Co Federico Basadre","Yarinacocha Centro","Yarinacocha Av Universitaria","Manantay Av Aguaytia","Manantay Av Tupac Amaru","Aguaytía"];
+
+const SK={settings:"rot_cfg_v3",logos:"rot_logos_v1",orders:"rot_orders_v1"};
+const persist=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
+const restore=(k,fb)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}};
+
+// ── Config IA ──
+const getAICfg=()=>{try{return JSON.parse(localStorage.getItem("rot_ai_cfg")||"{}")}catch{return{}}};
+const saveAICfg=v=>localStorage.setItem("rot_ai_cfg",JSON.stringify(v));
+
+const AI_PROVIDERS={
+  anthropic:{name:"Anthropic (Claude)",url:"https://api.anthropic.com/v1/messages",model:"claude-sonnet-4-6"},
+  openai:{name:"OpenAI (GPT-4o)",url:"https://api.openai.com/v1/chat/completions",model:"gpt-4o"},
+  openrouter:{name:"OpenRouter (multi-modelo)",url:"https://openrouter.ai/api/v1/chat/completions",model:"anthropic/claude-3-haiku"},
+  gemini:{name:"Google Gemini",url:"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",model:"gemini-pro"},
+  custom:{name:"API personalizada (OpenAI-compatible)",url:"",model:""},
+};
+
+const DEFAULT_PROMPT=`Extrae los datos de envío del siguiente texto y responde SOLO con un JSON sin texto adicional ni backticks:
+{"nombres":"nombre completo del destinatario","destino":"dirección completa de entrega","agencia":"empresa courier o agencia de envío","celular":"número de celular","dni":"número de DNI o documento","producto":"descripción del producto o pedido"}
+Si un campo no aparece en el texto, usa "" (cadena vacía). No inventes datos.`;
+
+const getPrompt=()=>localStorage.getItem("rot_prompt")||DEFAULT_PROMPT;
+const savePrompt=p=>localStorage.setItem("rot_prompt",p);
+
+const DEFAULT_CFG={brand:"KLYNEA",initial:"K",accent:"#c0532a",activeLogo:null,labelStyle:"classic",showBarcode:true,showCutMarks:true,showFragile:true,showCounter:true,borderRadius:3,accentBarHeight:4,headerBg:"#fdfcfa",footerBg:"#fdfcfa",bodyBg:"#ffffff",nameFontSize:14,dbUrl:"",dbToken:"",dbConnected:false,webhookUrl:"",webhookEnabled:false};
+const SAMPLE=[{id:1,nombres:"María Fernanda Quispe Loayza",destino:"Av. Los Olivos 482, Trujillo",agencia:"Trujillo La Perla",celular:"987 412 305",dni:"71204833",producto:"TOBILLERA NOVAFIT"},{id:2,nombres:"Carlos Mendoza Ríos",destino:"Jr. Bolognesi 1204, Arequipa",agencia:"Av Parra 379 Co",celular:"945 109 622",dni:"45990217",producto:"RODILLERA NOVAFIT"},{id:3,nombres:"Ana Lucía Paredes",destino:"Calle Sucre 88, Cusco",agencia:"Cusco Co Via Evitamiento",celular:"912 770 084",dni:"70334159",producto:"MUÑEQUERA NOVAFIT"}];
+
+// ── Claude/AI caller universal ──
+async function callAI(messages){
+  const ai={...AI_PROVIDERS.anthropic,...getAICfg()};
+  const key=ai.apiKey||"";
+  if(!key)throw new Error("Configura tu API key en ⚙ Configuración → 🤖 IA");
+  const provider=ai.provider||"anthropic";
+  const url=ai.url||AI_PROVIDERS[provider]?.url||ai.url;
+  const model=ai.model||AI_PROVIDERS[provider]?.model||"";
+  const userMsg=messages.find(m=>m.role==="user")?.content||"";
+
+  // Anthropic format
+  if(provider==="anthropic"){
+    const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model,max_tokens:1000,messages})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`Error ${r.status}`);}
+    return(await r.json()).content?.[0]?.text||"";
+  }
+  // Gemini format
+  if(provider==="gemini"){
+    const gemUrl=`${url}?key=${key}`;
+    const r=await fetch(gemUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:userMsg}]}]})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`Error ${r.status}`);}
+    return(await r.json()).candidates?.[0]?.content?.parts?.[0]?.text||"";
+  }
+  // OpenAI-compatible (OpenAI, OpenRouter, custom)
+  const headers={"Content-Type":"application/json","Authorization":`Bearer ${key}`};
+  if(provider==="openrouter"){headers["HTTP-Referer"]="https://rotulado.app";headers["X-Title"]="Rotulado";}
+  const r=await fetch(url,{method:"POST",headers,body:JSON.stringify({model,max_tokens:1000,messages:[{role:"user",content:userMsg}]})});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e?.error?.message||`Error ${r.status}`);}
+  return(await r.json()).choices?.[0]?.message?.content||"";
+}
+const callClaude=callAI; // alias para compatibilidad
+const pJSON=t=>{try{const m=t.match(/\{[\s\S]*\}/);return m?JSON.parse(m[0]):null;}catch{return null;}};
+const EP=`Extrae datos de envío y responde SOLO JSON sin texto:\n{"nombres":"","destino":"","agencia":"","celular":"","dni":"","producto":""}\nUsa "" si no aparece.`;
+const f2b64=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result.split(",")[1]);x.onerror=j;x.readAsDataURL(f);});
+const f2url=f=>new Promise((r,j)=>{const x=new FileReader();x.onload=()=>r(x.result);x.onerror=j;x.readAsDataURL(f);});
+const matchAg=d=>{if(d.agencia){const q=d.agencia.toLowerCase().replace(/[^a-z0-9 ]/g,"");const m=AGENCIES.find(a=>{const al=a.toLowerCase().replace(/[^a-z0-9 ]/g,"");return al.includes(q)||q.includes(al.split(" ").slice(0,3).join(" "));});if(m)d.agencia=m;}return d;};
+
+async function pushOrder(order,cfg){
+  const payload={...order,created_at:new Date().toISOString(),brand:cfg.brand};
+  const results={db:null,webhook:null};
+  if(cfg.dbConnected&&cfg.dbUrl){try{const h={"Content-Type":"application/json"};if(cfg.dbToken)h["Authorization"]=`Bearer ${cfg.dbToken}`;const r=await fetch(cfg.dbUrl,{method:"POST",headers:h,body:JSON.stringify(payload)});results.db=r.ok?"ok":`error_${r.status}`;}catch{results.db="error_network";}}
+  if(cfg.webhookEnabled&&cfg.webhookUrl){try{const r=await fetch(cfg.webhookUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});results.webhook=r.ok?"ok":`error_${r.status}`;}catch{results.webhook="error_network";}}
+  return results;
+}
+
+// ── Imprimir (funciona en servidor, no en claude.ai sandbox) ──
+function buildPrintHtml(orders,page,all,totalPages,cfg,logoUrl){
+  const pages=all?Array.from({length:totalPages},(_,i)=>i):[page-1];
+  const sheets=pages.map(pi=>{
+    const cells=[0,1,2,3,4,5].map(i=>{
+      const o=orders[pi*PER_PAGE+i];
+      if(!o)return`<div style="padding:3mm"><div style="border:1.5px dashed #d0ccc4;min-height:88mm;border-radius:2mm"></div></div>`;
+      const hBg=cfg.labelStyle==="bold"?cfg.accent:(cfg.headerBg||"#fdfcfa");
+      const hCol=cfg.labelStyle==="bold"?"#fff":"#1c1a17";
+      const bdr=cfg.labelStyle==="bold"?`2px solid ${cfg.accent}`:cfg.labelStyle==="minimal"?"1px solid #d0ccc4":"1.5px solid #1c1a17";
+      const barH=cfg.labelStyle==="minimal"?0:cfg.accentBarHeight;
+      const logo=logoUrl?`<img src="${logoUrl}" style="height:6mm;max-width:20mm;object-fit:contain">`:`<div style="width:5mm;height:5mm;border-radius:1mm;background:${cfg.labelStyle==="bold"?"#fff":cfg.accent};display:inline-flex;align-items:center;justify-content:center;color:${cfg.labelStyle==="bold"?cfg.accent:"#fff"};font-weight:700;font-size:7pt">${cfg.initial||"•"}</div>`;
+      return`<div style="padding:3mm"><div style="border:${bdr};border-radius:2mm;background:${cfg.bodyBg||"#fff"};overflow:hidden;font-family:Arial,sans-serif;color:#1c1a17">
+        <div style="height:${barH}mm;background:${cfg.accent}"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:2mm 3mm;border-bottom:1px solid ${cfg.labelStyle==="bold"?"transparent":"#1c1a17"};background:${hBg}">
+          <div style="display:flex;align-items:center;gap:2mm">${logo}<span style="font-weight:700;font-size:8pt;text-transform:uppercase;color:${hCol}">${cfg.brand}</span></div>
+          <span style="font-size:6pt;color:#888;font-family:monospace">RT-${String(10245+(o.id%1000)).padStart(5,"0")}</span>
+        </div>
+        <div style="padding:2.5mm 3mm 2mm;border-bottom:1px dashed #ccc">
+          <div style="font-size:5.5pt;text-transform:uppercase;color:#999;margin-bottom:1mm;font-family:monospace;font-weight:600">Destinatario</div>
+          <div style="font-size:${cfg.nameFontSize}pt;font-weight:700;line-height:1.2">${o.nombres||"—"}</div>
+        </div>
+        <div style="padding:2mm 3mm;border-bottom:1px dashed #ccc">
+          <div style="font-size:5.5pt;text-transform:uppercase;color:#999;margin-bottom:1mm;font-family:monospace;font-weight:600">Dirección de entrega</div>
+          <div style="font-size:9pt;font-weight:500;line-height:1.3;color:#2a2825">${o.destino||"—"}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px dashed #ccc">
+          <div style="padding:2mm 3mm;border-right:1px dashed #ccc">
+            <div style="font-size:5.5pt;text-transform:uppercase;color:#999;margin-bottom:1mm;font-family:monospace;font-weight:600">Agencia Shalom</div>
+            <div style="font-size:7.5pt;font-weight:500;color:#4a4845">${o.agencia||"—"}</div>
+          </div>
+          <div style="padding:2mm 3mm">
+            <div style="font-size:5.5pt;text-transform:uppercase;color:#999;margin-bottom:1mm;font-family:monospace;font-weight:600">Celular</div>
+            <div style="font-size:8pt;font-weight:700;font-family:monospace">${o.celular||"—"}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr">
+          <div style="padding:2mm 3mm;border-right:1px dashed #ccc">
+            <div style="font-size:5.5pt;text-transform:uppercase;color:#999;margin-bottom:1mm;font-family:monospace;font-weight:600">Producto</div>
+            <div style="font-size:7.5pt;font-weight:500;color:#4a4845">${o.producto||"—"}</div>
+          </div>
+          <div style="padding:2mm 3mm">
+            <div style="font-size:5.5pt;text-transform:uppercase;color:#999;margin-bottom:1mm;font-family:monospace;font-weight:600">DNI</div>
+            <div style="font-size:8pt;font-weight:700;font-family:monospace">${o.dni||"—"}</div>
+          </div>
+        </div>
+        <div style="padding:1.5mm 3mm;border-top:1.5px solid ${cfg.labelStyle==="minimal"?"#d0ccc4":"#1c1a17"};display:flex;align-items:center;justify-content:space-between;font-size:5.5pt;font-family:monospace;background:${cfg.labelStyle==="bold"?cfg.accent:(cfg.footerBg||"#fdfcfa")}">
+          ${cfg.showFragile?`<span style="text-transform:uppercase;color:${cfg.labelStyle==="bold"?"#fff":"#999"}">Frágil · No doblar</span>`:"<span></span>"}
+          ${cfg.showBarcode?`<div style="height:4mm;width:18mm;background:repeating-linear-gradient(90deg,#1c1a17 0 1px,transparent 1px 3px,#1c1a17 3px 5px,transparent 5px 6px)"></div>`:""}
+          ${cfg.showCounter?`<span style="font-weight:600;color:${cfg.labelStyle==="bold"?"#fff":"#555"}">#${String(i+1).padStart(2,"0")}/06</span>`:"<span></span>"}
+        </div>
+      </div></div>`;
+    }).join("");
+    return`<div style="width:210mm;height:297mm;background:#fff;display:grid;grid-template-columns:1fr 1fr;padding:6mm;box-sizing:border-box;page-break-after:always">${cells}</div>`;
+  }).join("");
+  return`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Rótulos ${cfg.brand}</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{background:#fff}
+    @page{size:210mm 297mm;margin:0}
+    @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}</style>
+  </head><body>${sheets}</body></html>`;
+}
+
+function doPrint(orders,page,all,totalPages,cfg,logoUrl){
+  const html=buildPrintHtml(orders,page,all,totalPages,cfg,logoUrl);
+  const w=window.open("","_blank");
+  if(!w){alert("Activa popups para este sitio e intenta de nuevo.");return;}
+  w.document.write(html);w.document.close();w.focus();
+  setTimeout(()=>w.print(),500);
+}
+
+const Spin=()=><span style={{display:"inline-block",animation:"spin .7s linear infinite",marginRight:5}}>⟳</span>;
+
+function AcInput({value,onChange,placeholder,suggestions=AGENCIES}){
+  const[open,setOpen]=useState(false);const[filt,setFilt]=useState([]);const wr=useRef(null);
+  const handle=v=>{onChange(v);if(v.length>0){const f=suggestions.filter(s=>s.toLowerCase().includes(v.toLowerCase())).slice(0,7);setFilt(f);setOpen(f.length>0);}else setOpen(false);};
+  useEffect(()=>{const fn=e=>{if(wr.current&&!wr.current.contains(e.target))setOpen(false);};document.addEventListener("mousedown",fn);return()=>document.removeEventListener("mousedown",fn);},[]);
+  return(<div ref={wr} style={{position:"relative"}}>
+    <input value={value} onChange={e=>handle(e.target.value)} placeholder={placeholder} onFocus={()=>{if(value&&filt.length>0)setOpen(true);}} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>
+    {open&&<div style={{position:"absolute",top:"calc(100% + 3px)",left:0,right:0,zIndex:400,background:"#fff",border:"1.5px solid #ccc",borderRadius:8,maxHeight:200,overflowY:"auto",boxShadow:"0 6px 20px rgba(0,0,0,.15)"}}>
+      {filt.map((s,i)=>{const idx=s.toLowerCase().indexOf(value.toLowerCase());return(<div key={i} onMouseDown={()=>{onChange(s);setOpen(false);}} style={{padding:"9px 12px",fontSize:13,cursor:"pointer",color:"#1a1a1a",borderBottom:i<filt.length-1?"1px solid #f0f0f0":"none"}} onMouseEnter={e=>e.currentTarget.style.background="#f5f0eb"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>{idx>=0?<>{s.slice(0,idx)}<strong style={{color:"#c0532a"}}>{s.slice(idx,idx+value.length)}</strong>{s.slice(idx+value.length)}</>:s}</div>);})}
+    </div>}
+  </div>);
+}
+
+function LabelCard({order,idx,cfg,logoUrl}){
+  if(!order)return(<div style={{padding:6}}><div style={{border:"1.5px dashed #d0ccc4",borderRadius:4,minHeight:165,display:"flex",alignItems:"center",justifyContent:"center",color:"#c0bbb0",fontSize:9,letterSpacing:".1em",textTransform:"uppercase",fontFamily:"monospace",background:"#faf9f7"}}>vacío</div></div>);
+  const vs={classic:{border:"1.5px solid #1c1a17",hBg:cfg.headerBg||"#fdfcfa",hCol:"#1c1a17",fBg:cfg.footerBg||"#fdfcfa"},bold:{border:`2px solid ${cfg.accent}`,hBg:cfg.accent,hCol:"#fff",fBg:cfg.accent},minimal:{border:"1px solid #d0ccc4",hBg:"#fff",hCol:"#1c1a17",fBg:"#fff"}}[cfg.labelStyle]||{border:"1.5px solid #1c1a17",hBg:cfg.headerBg||"#fdfcfa",hCol:"#1c1a17",fBg:cfg.footerBg||"#fdfcfa"};
+  return(<div style={{padding:6}}><div style={{border:vs.border,borderRadius:cfg.borderRadius,background:cfg.bodyBg||"#fff",overflow:"hidden",fontFamily:"Inter,system-ui,sans-serif",color:"#1c1a17"}}>
+    {cfg.labelStyle!=="minimal"&&<div style={{height:cfg.accentBarHeight,background:cfg.accent}}/>}
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 10px",borderBottom:`1px solid ${cfg.labelStyle==="bold"?"transparent":"#1c1a17"}`,background:vs.hBg}}>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        {logoUrl?<img src={logoUrl} alt="logo" style={{height:18,maxWidth:60,objectFit:"contain",flexShrink:0}}/>:<div style={{width:15,height:15,borderRadius:3,background:cfg.labelStyle==="bold"?"#fff":cfg.accent,display:"flex",alignItems:"center",justifyContent:"center",color:cfg.labelStyle==="bold"?cfg.accent:"#fff",fontWeight:700,fontSize:8,flexShrink:0}}>{cfg.initial||"•"}</div>}
+        <span style={{fontWeight:700,fontSize:"9.5px",textTransform:"uppercase",letterSpacing:".04em",color:vs.hCol}}>{cfg.brand}</span>
+      </div>
+      <span style={{fontFamily:"monospace",fontSize:"7.5px",color:vs.hCol==="#fff"?"rgba(255,255,255,.7)":"#888"}}>{idHash(order.id)}</span>
+    </div>
+    <div style={{padding:"6px 10px 4px",borderBottom:"1px dashed #ccc",background:cfg.bodyBg||"#fff"}}>
+      <div style={{fontSize:"6.5px",textTransform:"uppercase",letterSpacing:".14em",color:"#999",marginBottom:2,fontFamily:"monospace",fontWeight:600}}>Destinatario</div>
+      <div style={{fontSize:cfg.nameFontSize,fontWeight:700,lineHeight:1.2,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",color:"#1c1a17"}}>{order.nombres||"—"}</div>
+    </div>
+    <div style={{padding:"4px 10px",borderBottom:"1px dashed #ccc",background:cfg.bodyBg||"#fff"}}>
+      <div style={{fontSize:"6.5px",textTransform:"uppercase",letterSpacing:".14em",color:"#999",marginBottom:2,fontFamily:"monospace",fontWeight:600}}>Dirección de entrega</div>
+      <div style={{fontSize:"10px",fontWeight:500,lineHeight:1.3,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",color:"#2a2825"}}>{order.destino||"—"}</div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderBottom:"1px dashed #ccc",background:cfg.bodyBg||"#fff"}}>
+      <div style={{padding:"4px 10px",borderRight:"1px dashed #ccc"}}><div style={{fontSize:"6.5px",textTransform:"uppercase",letterSpacing:".14em",color:"#999",marginBottom:2,fontFamily:"monospace",fontWeight:600}}>Agencia Shalom</div><div style={{fontSize:"8.5px",fontWeight:500,color:"#4a4845",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{order.agencia||"—"}</div></div>
+      <div style={{padding:"4px 10px"}}><div style={{fontSize:"6.5px",textTransform:"uppercase",letterSpacing:".14em",color:"#999",marginBottom:2,fontFamily:"monospace",fontWeight:600}}>Celular</div><div style={{fontSize:"9px",fontWeight:700,fontFamily:"monospace",color:"#1c1a17"}}>{order.celular||"—"}</div></div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",background:cfg.bodyBg||"#fff"}}>
+      <div style={{padding:"4px 10px",borderRight:"1px dashed #ccc"}}><div style={{fontSize:"6.5px",textTransform:"uppercase",letterSpacing:".14em",color:"#999",marginBottom:2,fontFamily:"monospace",fontWeight:600}}>Producto</div><div style={{fontSize:"8.5px",fontWeight:500,color:"#4a4845",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}>{order.producto||"—"}</div></div>
+      <div style={{padding:"4px 10px"}}><div style={{fontSize:"6.5px",textTransform:"uppercase",letterSpacing:".14em",color:"#999",marginBottom:2,fontFamily:"monospace",fontWeight:600}}>DNI</div><div style={{fontSize:"9px",fontWeight:700,fontFamily:"monospace",color:"#1c1a17"}}>{order.dni||"—"}</div></div>
+    </div>
+    <div style={{padding:"4px 10px",borderTop:`1.5px solid ${cfg.labelStyle==="minimal"?"#d0ccc4":"#1c1a17"}`,display:"flex",alignItems:"center",justifyContent:"space-between",fontFamily:"monospace",fontSize:"6.5px",background:vs.fBg}}>
+      {cfg.showFragile&&<span style={{textTransform:"uppercase",letterSpacing:".06em",color:cfg.labelStyle==="bold"?"#fff":"#999"}}>Frágil · No doblar</span>}
+      {cfg.showBarcode&&<div style={{height:10,width:44,background:`repeating-linear-gradient(90deg,#1c1a17 0 1px,transparent 1px 3px,#1c1a17 3px 5px,transparent 5px 6px)`,flexShrink:0}}/>}
+      {cfg.showCounter&&<span style={{fontWeight:600,color:cfg.labelStyle==="bold"?"#fff":"#555"}}>#{String(idx+1).padStart(2,"0")}/06</span>}
+    </div>
+  </div></div>);
+}
+
+function PreviewCard({data,onConfirm,onCancel,cfg}){
+  const[f,setF]=useState({...data});const[sending,setSending]=useState(false);const[res,setRes]=useState(null);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const hasInt=(cfg.dbConnected&&cfg.dbUrl)||(cfg.webhookEnabled&&cfg.webhookUrl);
+  const confirm=async()=>{const o={id:Date.now(),...f};if(hasInt){setSending(true);const r=await pushOrder(o,cfg);setRes(r);setSending(false);}onConfirm(o);};
+  const inp=(k,ph)=><input value={f[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>;
+  const lbl=t=><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>{t}</div>;
+  return(<div style={{border:"2px solid #b8a898",borderRadius:10,overflow:"hidden",marginTop:10,background:"#fff"}}>
+    <div style={{padding:"10px 14px",background:"#f0ece5",borderBottom:"1px solid #ddd8ce",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <span style={{fontSize:12,fontWeight:700,textTransform:"uppercase",color:"#5a4a3a"}}>✓ Extraído — revisa y confirma</span>
+      <button onClick={onCancel} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#888",lineHeight:1,padding:0}}>×</button>
+    </div>
+    <div style={{padding:"12px 14px",display:"flex",flexDirection:"column",gap:10,background:"#fdfbf8"}}>
+      <div>{lbl("Destinatario")}{inp("nombres","Nombre completo")}</div>
+      <div>{lbl("Dirección")}{inp("destino","Av. / Jr., Ciudad")}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+        <div>{lbl("Agencia")}<AcInput value={f.agencia} onChange={v=>set("agencia",v)} placeholder="Buscar…"/></div>
+        <div>{lbl("Celular")}{inp("celular","987 654 321")}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+        <div>{lbl("Producto")}<AcInput value={f.producto} onChange={v=>set("producto",v)} placeholder="TOBILLERA NOVAFIT…" suggestions={PRODUCTS}/></div>
+        <div>{lbl("DNI")}{inp("dni","70123456")}</div>
+      </div>
+    </div>
+    {res&&<div style={{padding:"8px 14px",background:"#f0fdf4",borderTop:"1px solid #ddd8ce",fontSize:12,display:"flex",gap:8}}>
+      {res.db&&<span style={{color:res.db==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.db==="ok"?"✓ DB guardado":"✗ DB error"}</span>}
+      {res.webhook&&<span style={{color:res.webhook==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.webhook==="ok"?"✓ Webhook":"✗ Webhook error"}</span>}
+    </div>}
+    <div style={{padding:"10px 14px",borderTop:"1px solid #ddd8ce",display:"flex",gap:8,background:"#f0ece5"}}>
+      <button onClick={confirm} disabled={sending} style={{flex:1,padding:"10px",background:sending?"#c8a090":"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:sending?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+        {sending?<><Spin/>Enviando…</>:hasInt?"📤 Confirmar y guardar":"+ Confirmar y agregar"}
+      </button>
+      <button onClick={onCancel} style={{padding:"10px 14px",background:"#fff",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,cursor:"pointer",color:"#666",fontWeight:500}}>Cancelar</button>
+    </div>
+  </div>);
+}
+
+function PasteTab({onConfirm,cfg}){
+  const[text,setText]=useState("");const[loading,setLoading]=useState(false);const[err,setErr]=useState("");const[preview,setPreview]=useState(null);
+  const analyze=async()=>{setErr("");setPreview(null);if(!text.trim()){setErr("Pega algún texto.");return;}setLoading(true);try{const raw=await callAI([{role:"user",content:`${getPrompt()}\n\nTEXTO:\n${text}`}]);const d=pJSON(raw);if(!d)throw new Error("No se pudo extraer. Ajusta el prompt en Configuración → 🤖 IA.");setPreview(matchAg(d));}catch(e){setErr("Error: "+e.message);}finally{setLoading(false);};};
+  const confirm=o=>{onConfirm(o);setPreview(null);setText("");};
+  return(<div style={{display:"flex",flexDirection:"column",gap:10}}>
+    <p style={{fontSize:13,color:"#6a5a4a",lineHeight:1.5,margin:0,padding:"9px 11px",background:"#f5f0e8",borderRadius:8,border:"1px solid #e0d8cc"}}>📋 Pega un <strong>chat de WhatsApp</strong> o mensaje con datos del pedido.</p>
+    <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"Ej:\nCliente: Juan Pérez\nDirección: Av. Larco 1450\nCelular: 987654321\nProducto: TOBILLERA NOVAFIT\nDNI: 72345678"} style={{width:"100%",minHeight:110,padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,fontFamily:"monospace",lineHeight:1.6,resize:"vertical",background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>
+    {loading&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"#fffbf5",borderRadius:8,fontSize:13,color:"#7a5a3a",border:"1px solid #e8d8c0",fontWeight:500}}><Spin/>Claude analizando…</div>}
+    {err&&<div style={{padding:"10px 12px",borderRadius:8,fontSize:13,background:"#fef2f2",border:"1.5px solid #f5b8b8",color:"#9b2020",fontWeight:500}}>{err}</div>}
+    {!preview&&<button onClick={analyze} disabled={loading||!text.trim()} style={{padding:"11px",background:loading||!text.trim()?"#c8a090":"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading||!text.trim()?"default":"pointer"}}>✦ Analizar con Claude</button>}
+    {preview&&<PreviewCard data={preview} onConfirm={confirm} onCancel={()=>setPreview(null)} cfg={cfg}/>}
+  </div>);
+}
+
+function FotoTab({onConfirm,cfg}){
+  const[imgFile,setImgFile]=useState(null);const[imgP,setImgP]=useState(null);const[loading,setLoading]=useState(false);const[err,setErr]=useState("");const[ok,setOk]=useState("");const[drag,setDrag]=useState(false);const[preview,setPreview]=useState(null);const fr=useRef(null);
+  const hf=f=>{if(!f)return;setImgFile(f);setErr("");setOk("");setPreview(null);setImgP(URL.createObjectURL(f));};
+  const clear=()=>{setImgFile(null);setImgP(null);setErr("");setOk("");setPreview(null);};
+  const extract=async()=>{if(!imgFile){setErr("Selecciona imagen.");return;}setLoading(true);setErr("");setOk("");try{const b64=await f2b64(imgFile);const raw=await callAI([{role:"user",content:[{type:"image",source:{type:"base64",media_type:imgFile.type,data:b64}},{type:"text",text:`${getPrompt()}\n\nAnaliza la imagen y extrae los datos del pedido.`}]}]);const d=pJSON(raw);if(!d)throw new Error("No se pudo interpretar. Ajusta el prompt en Configuración → 🤖 IA.");setPreview(matchAg(d));}catch(e){setErr("Error: "+e.message);}finally{setLoading(false);};};
+  const confirm=o=>{onConfirm(o);setOk("¡Pedido agregado!");setPreview(null);setImgFile(null);setImgP(null);};
+  return(<div style={{display:"flex",flexDirection:"column",gap:10}}>
+    <div onClick={()=>fr.current?.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files?.[0];if(f?.type.startsWith("image/"))hf(f);}} style={{border:`2px dashed ${drag?"#c0532a":"#c8b8a8"}`,borderRadius:10,padding:20,textAlign:"center",background:drag?"#fff7f4":"#faf7f3",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:7}}>
+      <span style={{fontSize:28}}>📷</span><div style={{fontWeight:700,color:"#4a3a2a",fontSize:14}}>Suelta una foto aquí</div><div style={{fontSize:12,color:"#9a8070"}}>o haz clic · JPG, PNG, WEBP</div>
+    </div>
+    <input ref={fr} type="file" accept="image/*" onChange={e=>{hf(e.target.files?.[0]);e.target.value="";}} style={{display:"none"}}/>
+    {imgP&&<img src={imgP} alt="preview" style={{width:"100%",maxHeight:140,objectFit:"cover",borderRadius:8,border:"2px solid #d0c8bc"}}/>}
+    {loading&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"10px",background:"#fffbf5",borderRadius:8,fontSize:13,color:"#7a5a3a",border:"1px solid #e8d8c0",fontWeight:500}}><Spin/>Analizando imagen…</div>}
+    {err&&<div style={{padding:"10px",borderRadius:8,fontSize:13,background:"#fef2f2",border:"1.5px solid #f5b8b8",color:"#9b2020",fontWeight:500}}>{err}</div>}
+    {ok&&<div style={{padding:"10px",borderRadius:8,fontSize:13,background:"#f0fdf4",border:"1.5px solid #86e8ac",color:"#166534",fontWeight:500}}>✓ {ok}</div>}
+    {!preview&&<div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:8}}>
+      <button onClick={extract} disabled={!imgFile||loading} style={{padding:"11px",background:!imgFile||loading?"#c8a090":"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:!imgFile||loading?"default":"pointer"}}>✦ Extraer con Claude</button>
+      {imgFile&&<button onClick={clear} style={{padding:"11px 12px",background:"#fff",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,cursor:"pointer",color:"#666",fontWeight:500}}>Limpiar</button>}
+    </div>}
+    {preview&&<PreviewCard data={preview} onConfirm={confirm} onCancel={()=>setPreview(null)} cfg={cfg}/>}
+  </div>);
+}
+
+function FormTab({onAdd,cfg}){
+  const E={nombres:"",destino:"",agencia:"",celular:"",dni:"",producto:""};
+  const[f,setF]=useState(E);const[sending,setSending]=useState(false);const[res,setRes]=useState(null);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const hasInt=(cfg.dbConnected&&cfg.dbUrl)||(cfg.webhookEnabled&&cfg.webhookUrl);
+  const add=async()=>{if(!f.nombres.trim()&&!f.destino.trim())return;const o={id:Date.now(),...f};if(hasInt){setSending(true);const r=await pushOrder(o,cfg);setRes(r);setSending(false);}onAdd(o);setF(E);setTimeout(()=>setRes(null),3000);};
+  const lbl=t=><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>{t}</div>;
+  const inp=(k,ph,type="text")=><input type={type} value={f[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>;
+  return(<div style={{display:"flex",flexDirection:"column",gap:10}}>
+    <div>{lbl("Destinatario *")}{inp("nombres","Nombre completo")}</div>
+    <div>{lbl("Dirección *")}{inp("destino","Av. Los Olivos 482, Trujillo")}</div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+      <div>{lbl("Agencia Shalom")}<AcInput value={f.agencia} onChange={v=>set("agencia",v)} placeholder="Buscar…"/></div>
+      <div>{lbl("Celular")}{inp("celular","987 654 321","tel")}</div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9}}>
+      <div>{lbl("Producto")}<AcInput value={f.producto} onChange={v=>set("producto",v)} placeholder="TOBILLERA NOVAFIT…" suggestions={PRODUCTS}/></div>
+      <div>{lbl("DNI")}{inp("dni","70123456")}</div>
+    </div>
+    {res&&<div style={{padding:"8px 10px",borderRadius:8,fontSize:12,background:"#f0fdf4",border:"1px solid #86e8ac",display:"flex",gap:8}}>
+      {res.db&&<span style={{color:res.db==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.db==="ok"?"✓ DB":"✗ DB"}</span>}
+      {res.webhook&&<span style={{color:res.webhook==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.webhook==="ok"?"✓ Webhook":"✗ Webhook"}</span>}
+    </div>}
+    <button onClick={add} disabled={sending} style={{padding:"11px",background:sending?"#c8a090":"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:sending?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+      {sending?<><Spin/>Enviando…</>:hasInt?"📤 Agregar y guardar":"+ Agregar pedido"}
+    </button>
+  </div>);
+}
+
+function EditModal({order,onSave,onClose,cfg}){
+  const[f,setF]=useState({...order});const[sending,setSending]=useState(false);
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const hasInt=(cfg.dbConnected&&cfg.dbUrl)||(cfg.webhookEnabled&&cfg.webhookUrl);
+  const doSave=async()=>{if(hasInt){setSending(true);await pushOrder({...f},cfg);setSending(false);}onSave(f);};
+  const lbl=t=><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>{t}</div>;
+  const inp=(k,ph)=><input value={f[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>;
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,zIndex:150}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"#fdfaf6",borderRadius:14,width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto",border:"1.5px solid #d0c8bc"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 18px",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8"}}><span style={{fontSize:15,fontWeight:700,color:"#3a2a1a"}}>✎ Editar pedido</span><button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#888",lineHeight:1,padding:0}}>×</button></div>
+      <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:12}}>
+        <div>{lbl("Destinatario")}{inp("nombres","Nombre")}</div>
+        <div>{lbl("Dirección")}{inp("destino","Dirección")}</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div>{lbl("Agencia")}<AcInput value={f.agencia} onChange={v=>set("agencia",v)} placeholder="Buscar…"/></div>
+          <div>{lbl("Celular")}{inp("celular","987…")}</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div>{lbl("Producto")}<AcInput value={f.producto} onChange={v=>set("producto",v)} placeholder="TOBILLERA…" suggestions={PRODUCTS}/></div>
+          <div>{lbl("DNI")}{inp("dni","DNI")}</div>
+        </div>
+      </div>
+      <div style={{padding:"12px 18px",borderTop:"1px solid #e0d8cc",display:"flex",justifyContent:"flex-end",gap:8,background:"#f5f0e8"}}>
+        <button onClick={onClose} style={{padding:"9px 16px",background:"#fff",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,cursor:"pointer",color:"#555",fontWeight:500}}>Cancelar</button>
+        <button onClick={doSave} disabled={sending} style={{padding:"9px 18px",background:"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+          {sending?<><Spin/>Guardando…</>:hasInt?"📤 Guardar y sincronizar":"Guardar"}
+        </button>
+      </div>
+    </div>
+  </div>);
+}
+
+function PrintModal({orders,page,totalPages,cfg,logoUrl,onClose}){
+  const[pp,setPp]=useState(page);const[all,setAll]=useState(false);
+  const go=()=>{doPrint(orders,pp,all,totalPages,cfg,logoUrl);onClose();};
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,zIndex:200}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"#fdfaf6",borderRadius:14,width:"100%",maxWidth:440,border:"1.5px solid #d0c8bc"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 18px",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"14px 14px 0 0"}}><span style={{fontSize:15,fontWeight:700,color:"#3a2a1a"}}>🖨 Imprimir / PDF</span><button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#888",lineHeight:1,padding:0}}>×</button></div>
+      <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:12}}>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setAll(false)} style={{flex:1,padding:"11px",border:`2px solid ${!all?"#1c1a17":"#d0c8bc"}`,borderRadius:8,background:!all?"#fff7ef":"#fff",fontWeight:!all?700:500,fontSize:14,cursor:"pointer"}}>📄 Hoja {pp}</button>
+          <button onClick={()=>setAll(true)} style={{flex:1,padding:"11px",border:`2px solid ${all?"#1c1a17":"#d0c8bc"}`,borderRadius:8,background:all?"#fff7ef":"#fff",fontWeight:all?700:500,fontSize:14,cursor:"pointer"}}>📋 Todas ({totalPages})</button>
+        </div>
+        {!all&&totalPages>1&&<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{Array.from({length:totalPages},(_,i)=>i+1).map(p=><button key={p} onClick={()=>setPp(p)} style={{padding:"6px 14px",border:`1.5px solid ${pp===p?"#c0532a":"#d0c8bc"}`,borderRadius:6,background:pp===p?"#fff7ef":"#fff",fontWeight:pp===p?700:500,fontSize:13,cursor:"pointer",color:pp===p?"#c0532a":"#5a4a3a"}}>Hoja {p}</button>)}</div>}
+        <div style={{padding:"10px 12px",background:"#fffbf0",borderRadius:8,fontSize:12.5,color:"#7a5a1a",border:"1px solid #e8d090",lineHeight:1.6}}>
+          💡 Se abrirá el diálogo de impresión. Para PDF: elige <strong>"Guardar como PDF"</strong> como destino, papel <strong>A4</strong>, márgenes <strong>Ninguno</strong>.
+        </div>
+      </div>
+      <div style={{padding:"12px 18px",borderTop:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"0 0 14px 14px",display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button onClick={onClose} style={{padding:"10px 16px",background:"#fff",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,cursor:"pointer",color:"#555",fontWeight:500}}>Cerrar</button>
+        <button onClick={go} style={{padding:"10px 22px",background:"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>🖨 Imprimir / PDF</button>
+      </div>
+    </div>
+  </div>);
+}
+
+function TestAIBtn(){
+  const[testing,setTesting]=useState(false);
+  const[testMsg,setTestMsg]=useState("");
+  const test=async()=>{
+    setTesting(true);setTestMsg("");
+    try{
+      const result=await callAI([{role:"user",content:"Responde solo: OK"}]);
+      setTestMsg(result?.trim()?"✅ Conexión exitosa — la IA responde correctamente":"⚠️ Conectó pero respuesta vacía");
+    }catch(e){
+      if(e.message.includes("fetch")||e.message.includes("CORS")||e.message.includes("Failed")){
+        setTestMsg("❌ Error CORS/Red — si estás abriendo el archivo local (file://) ninguna API funcionará. Súbelo a tu servidor.");
+      } else {
+        setTestMsg("❌ "+e.message);
+      }
+    }
+    setTesting(false);
+  };
+  return(<>
+    <button onClick={test} disabled={testing} style={{width:"100%",padding:"10px",background:testing?"#ccc":"#1f5a8a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:testing?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+      {testing?<><Spin/>Probando conexión…</>:"🔌 Probar conexión"}
+    </button>
+    {testMsg&&<div style={{padding:"10px 12px",borderRadius:8,fontSize:13,marginTop:6,fontWeight:500,lineHeight:1.5,background:testMsg.startsWith("✅")?"#f0fdf4":testMsg.startsWith("⚠️")?"#fffbf0":"#fef2f2",border:`1px solid ${testMsg.startsWith("✅")?"#86e8ac":testMsg.startsWith("⚠️")?"#e8d090":"#f5b8b8"}`,color:testMsg.startsWith("✅")?"#166534":testMsg.startsWith("⚠️")?"#7a5a1a":"#9b2020"}}>{testMsg}</div>}
+  </>);
+}
+
+function SettingsModal({cfg,setCfg,logos,setLogos,onClose}){
+  const[tab,setTab]=useState("marca");
+  const[aiCfg,setAiCfgState]=useState(()=>({provider:"anthropic",...getAICfg()}));
+  const aiCfgRef=useRef(aiCfg);
+  const[prompt,setPromptState]=useState(getPrompt);
+  const setAi=(k,v)=>{const next={...aiCfgRef.current,[k]:v};aiCfgRef.current=next;setAiCfgState(next);};
+  const saveAI=()=>{saveAICfg(aiCfgRef.current);savePrompt(prompt);};
+  const currentProvider=AI_PROVIDERS[aiCfg.provider]||AI_PROVIDERS.custom;
+  const[uploading,setUploading]=useState(false);
+  const[dbTesting,setDbTesting]=useState(false);const[dbMsg,setDbMsg]=useState("");
+  const fileRef=useRef(null);
+  const set=(k,v)=>setCfg(p=>({...p,[k]:v}));
+
+  const handleLogoUpload=async f=>{if(!f)return;setUploading(true);try{const d=await f2url(f);const n=f.name.replace(/\.[^.]+$/,"");const nl={id:Date.now(),name:n,dataUrl:d};const u=[...logos,nl];setLogos(u);persist(SK.logos,u);set("activeLogo",nl.id);}catch{}finally{setUploading(false);};};
+  const delLogo=id=>{const u=logos.filter(l=>l.id!==id);setLogos(u);persist(SK.logos,u);if(cfg.activeLogo===id)set("activeLogo",null);};
+
+  const testDb=async()=>{setDbTesting(true);setDbMsg("");try{if(!cfg.dbUrl.trim()){setDbMsg("❌ Ingresa la URL.");setDbTesting(false);return;}const h={"Content-Type":"application/json"};if(cfg.dbToken)h["Authorization"]=`Bearer ${cfg.dbToken}`;let ok=false;for(const ep of [cfg.dbUrl,cfg.dbUrl.replace(/\/$/,"")+"/pedidos"]){try{const r=await fetch(ep,{method:"GET",headers:h});if(r.status<500){ok=true;setCfg(p=>({...p,dbConnected:true}));setDbMsg(`✅ Conexión OK (${r.status})`);break;}}catch{}}if(!ok){setCfg(p=>({...p,dbConnected:false}));setDbMsg("⚠️ No se pudo conectar.");}}catch(e){setDbMsg("❌ "+e.message);setCfg(p=>({...p,dbConnected:false}));}setDbTesting(false);};
+
+  const TABS=[["marca","🏷 Marca"],["visual","🎨 Visual"],["logos","🖼 Logos"],["ai","🤖 IA"],["db","🗄 DB"],["webhook","⚡ Webhook"]];
+  const Slider=({label,k,min,max,unit=""})=>(<div style={{display:"flex",flexDirection:"column",gap:5}}><div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:13,fontWeight:600,color:"#5a4a3a"}}>{label}</span><span style={{fontSize:12,fontFamily:"monospace",color:"#9a8070"}}>{cfg[k]}{unit}</span></div><input type="range" min={min} max={max} value={cfg[k]} onChange={e=>set(k,Number(e.target.value))} style={{width:"100%",accentColor:"#c0532a"}}/></div>);
+  const ColorRow=({label,k})=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}><span style={{fontSize:13,fontWeight:600,color:"#5a4a3a"}}>{label}</span><div style={{display:"flex",alignItems:"center",gap:6}}><input type="color" value={cfg[k]} onChange={e=>set(k,e.target.value)} style={{width:34,height:30,borderRadius:6,padding:0,border:"1.5px solid #bbb",cursor:"pointer"}}/><span style={{fontSize:11,fontFamily:"monospace",color:"#9a8070"}}>{cfg[k]}</span></div></div>);
+  const Toggle=({label,k,desc})=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 11px",border:"1px solid #e0d8cc",borderRadius:8,background:"#fff",gap:10}}><div><div style={{fontSize:14,fontWeight:600,color:"#3a2a1a"}}>{label}</div>{desc&&<div style={{fontSize:12,color:"#9a8070",marginTop:2}}>{desc}</div>}</div><div onClick={()=>set(k,!cfg[k])} style={{width:34,height:20,borderRadius:999,background:cfg[k]?"#1c1a17":"#d4cfc4",position:"relative",cursor:"pointer",transition:".14s",flexShrink:0}}><div style={{position:"absolute",top:3,left:cfg[k]?17:3,width:14,height:14,borderRadius:"50%",background:"#fff",transition:".14s",boxShadow:"0 1px 2px #0003"}}/></div></div>);
+  const inp=(k,ph,type="text")=><input type={type} value={cfg[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>;
+
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,zIndex:100}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"#fdfaf6",borderRadius:14,width:"100%",maxWidth:540,maxHeight:"94vh",display:"flex",flexDirection:"column",border:"1.5px solid #d0c8bc"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 18px",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"14px 14px 0 0"}}><span style={{fontSize:15,fontWeight:700,color:"#3a2a1a"}}>⚙ Configuración</span><button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#888",lineHeight:1,padding:0}}>×</button></div>
+      <div style={{display:"flex",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",flexShrink:0,overflowX:"auto"}}>
+        {TABS.map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{flexShrink:0,padding:"10px 12px",border:"none",borderBottom:`3px solid ${tab===id?"#c0532a":"transparent"}`,background:"transparent",fontSize:11,fontWeight:tab===id?700:500,color:tab===id?"#c0532a":"#7a6a5a",cursor:"pointer",whiteSpace:"nowrap"}}>{label}</button>)}
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px",display:"flex",flexDirection:"column",gap:14}}>
+
+        {tab==="marca"&&<>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 72px",gap:10}}>
+            <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>Nombre de marca</div>{inp("brand","KLYNEA")}</div>
+            <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>Inicial</div><input value={cfg.initial} onChange={e=>set("initial",e.target.value.toUpperCase().slice(0,2))} maxLength={2} style={{width:"100%",padding:"9px 10px",border:"1.5px solid #ccc",borderRadius:8,fontSize:16,fontWeight:700,textAlign:"center",background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/></div>
+          </div>
+          <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:8}}>Color de acento</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+              {PALETTE.map(h=><div key={h} onClick={()=>set("accent",h)} style={{width:34,height:34,borderRadius:7,background:h,cursor:"pointer",border:cfg.accent===h?"3px solid #1a1a1a":"2px solid transparent",transform:cfg.accent===h?"scale(1.1)":"scale(1)",transition:".12s"}}/>)}
+              <input type="color" value={cfg.accent} onChange={e=>set("accent",e.target.value)} style={{width:34,height:34,borderRadius:7,padding:0,border:"1.5px solid #bbb",cursor:"pointer"}}/>
+            </div>
+          </div>
+        </>}
+
+        {tab==="visual"&&<>
+          <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:8}}>Estilo</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+              {[["classic","Clásico","Bordes oscuros"],["bold","Negrita","Header colorido"],["minimal","Mínimo","Bordes suaves"]].map(([v,n,d])=><div key={v} onClick={()=>set("labelStyle",v)} style={{border:`2px solid ${cfg.labelStyle===v?"#1c1a17":"#d0c8bc"}`,borderRadius:9,padding:"10px 8px",cursor:"pointer",background:cfg.labelStyle===v?"#fff7ef":"#fff",textAlign:"center",transition:".12s"}}>
+                <div style={{width:"100%",height:7,borderRadius:2,background:v==="classic"?"#1c1a17":v==="bold"?cfg.accent:"#d0ccc4",marginBottom:6}}/>
+                <div style={{fontSize:13,fontWeight:700,color:"#3a2a1a"}}>{n}</div><div style={{fontSize:11,color:"#9a8070",marginTop:2}}>{d}</div>
+              </div>)}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><ColorRow label="Cabecera" k="headerBg"/><ColorRow label="Pie" k="footerBg"/><ColorRow label="Cuerpo" k="bodyBg"/></div>
+          <Slider label="Tamaño nombre" k="nameFontSize" min={11} max={20} unit="px"/>
+          <Slider label="Barra acento" k="accentBarHeight" min={0} max={10} unit="px"/>
+          <Slider label="Radio bordes" k="borderRadius" min={0} max={12} unit="px"/>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <Toggle label="Marcas de corte" k="showCutMarks" desc="Líneas guía"/><Toggle label="Código de barras" k="showBarcode" desc="Decorativo"/><Toggle label="Texto Frágil" k="showFragile"/><Toggle label="Contador" k="showCounter" desc="#01/06"/>
+          </div>
+        </>}
+
+        {tab==="logos"&&<>
+          {logos.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {logos.map(logo=><div key={logo.id} onClick={()=>set("activeLogo",cfg.activeLogo===logo.id?null:logo.id)} style={{border:`2px solid ${cfg.activeLogo===logo.id?"#1c1a17":"#d0c8bc"}`,borderRadius:9,padding:"9px 8px 7px",cursor:"pointer",background:cfg.activeLogo===logo.id?"#fff7ef":"#fff",position:"relative",textAlign:"center",transition:".12s"}}>
+              {cfg.activeLogo===logo.id&&<div style={{position:"absolute",top:5,right:5,width:18,height:18,borderRadius:"50%",background:"#c0532a",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>}
+              <img src={logo.dataUrl} alt={logo.name} style={{height:40,maxWidth:"100%",objectFit:"contain",display:"block",margin:"0 auto 5px"}}/>
+              <div style={{fontSize:11,fontWeight:600,color:"#5a4a3a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{logo.name}</div>
+              <button onClick={e=>{e.stopPropagation();delLogo(logo.id);}} style={{marginTop:5,padding:"3px 8px",background:"#fef2f2",border:"1px solid #f5b8b8",borderRadius:5,fontSize:11,color:"#9b2020",cursor:"pointer",fontWeight:600}}>Eliminar</button>
+            </div>)}
+          </div>}
+          <div onClick={()=>fileRef.current?.click()} style={{border:"2px dashed #c8b8a8",borderRadius:9,padding:16,textAlign:"center",cursor:"pointer",background:"#faf7f3",fontSize:14,color:"#8a7060"}} onMouseEnter={e=>e.currentTarget.style.borderColor="#c0532a"} onMouseLeave={e=>e.currentTarget.style.borderColor="#c8b8a8"}>
+            {uploading?<><Spin/>Subiendo…</>:<><strong style={{color:"#4a3a2a"}}>+ Subir logo</strong> · PNG, JPG, SVG</>}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={e=>{handleLogoUpload(e.target.files?.[0]);e.target.value="";}} style={{display:"none"}}/>
+        </>}
+
+        {tab==="ai"&&<>
+          {/* Proveedor */}
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:8}}>Proveedor de IA</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {Object.entries(AI_PROVIDERS).map(([k,v])=>(
+                <div key={k} onClick={()=>setAi("provider",k)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",border:`2px solid ${aiCfg.provider===k?"#1c1a17":"#d0c8bc"}`,borderRadius:8,cursor:"pointer",background:aiCfg.provider===k?"#fff7ef":"#fff",transition:".12s"}}>
+                  <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${aiCfg.provider===k?"#c0532a":"#ccc"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    {aiCfg.provider===k&&<div style={{width:8,height:8,borderRadius:"50%",background:"#c0532a"}}/>}
+                  </div>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:"#1c1a17"}}>{v.name}</div>
+                    {v.model&&<div style={{fontSize:11,color:"#9a8070",fontFamily:"monospace"}}>{aiCfg.provider===k&&aiCfg.model?aiCfg.model:v.model}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* URL personalizada si es custom */}
+          {aiCfg.provider==="custom"&&<div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>URL del endpoint (OpenAI-compatible)</div>
+            <input value={aiCfg.url||""} onChange={e=>setAi("url",e.target.value)} placeholder="https://mi-ollama.com/v1/chat/completions" style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
+          </div>}
+
+          {/* Modelo */}
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>Modelo</div>
+            <input value={aiCfg.model||currentProvider.model||""} onChange={e=>setAi("model",e.target.value)} placeholder={currentProvider.model||"nombre-del-modelo"} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
+          </div>
+
+          {/* API Key */}
+          <div>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>API Key</div>
+            <input type="password" value={aiCfg.apiKey||""} onChange={e=>setAi("apiKey",e.target.value)} placeholder={aiCfg.provider==="anthropic"?"sk-ant-api03-...":aiCfg.provider==="openai"?"sk-...":aiCfg.provider==="openrouter"?"sk-or-v1-...":"tu-api-key"} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
+          </div>
+
+          {/* Probar conexión */}
+          {(aiCfg.apiKey||"").length>5&&<div><TestAIBtn/></div>}
+          <div style={{padding:"10px 12px",background:"#f0f8ff",borderRadius:8,fontSize:12.5,color:"#1a3a6a",border:"1px solid #b0c8f0",lineHeight:1.7}}>
+            {aiCfg.provider==="anthropic"&&<>🔑 Obtén tu key en <strong>console.anthropic.com</strong> → API Keys</>}
+            {aiCfg.provider==="openai"&&<>🔑 Obtén tu key en <strong>platform.openai.com</strong> → API Keys</>}
+            {aiCfg.provider==="openrouter"&&<>🔑 Obtén tu key en <strong>openrouter.ai/keys</strong> — accede a múltiples modelos con una sola key, incluyendo modelos gratuitos</>}
+            {aiCfg.provider==="gemini"&&<>🔑 Obtén tu key en <strong>aistudio.google.com</strong> → Get API Key — tiene tier gratuito</>}
+            {aiCfg.provider==="custom"&&<>🔑 Usa la key que requiera tu endpoint (Ollama local no necesita key)</>}
+          </div>
+
+          <div style={{borderTop:"1px solid #e0d8cc",paddingTop:14}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:6}}>Prompt de extracción</div>
+            <div style={{fontSize:12,color:"#8a7a6a",marginBottom:8,lineHeight:1.5}}>Este es el prompt que se envía a la IA para extraer los datos del pedido. Ajústalo si los resultados no son precisos para tu tipo de texto.</div>
+            <textarea value={prompt} onChange={e=>setPromptState(e.target.value)} style={{width:"100%",minHeight:160,padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:12,fontFamily:"monospace",lineHeight:1.6,resize:"vertical",background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>
+            <button onClick={()=>setPromptState(DEFAULT_PROMPT)} style={{marginTop:6,padding:"6px 12px",background:"#fff",border:"1.5px solid #d0c8bc",borderRadius:7,fontSize:12,cursor:"pointer",color:"#7a6a5a",fontWeight:500}}>
+              ↩ Restaurar prompt por defecto
+            </button>
+          </div>
+        </>}
+
+        {tab==="db"&&<>
+          <div style={{padding:"10px 12px",background:"#f0f4ff",borderRadius:8,fontSize:13,color:"#1a3a6a",border:"1px solid #b0c8f0",lineHeight:1.6}}>🗄 Compatible con Supabase, Pocketbase, PostgREST o tu Django en Hetzner.</div>
+          <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>URL del endpoint</div>{inp("dbUrl","https://tu-api.com/api/pedidos/")}</div>
+          <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>Token (opcional)</div>{inp("dbToken","Bearer eyJ…","password")}</div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <button onClick={testDb} disabled={dbTesting} style={{padding:"10px 16px",background:dbTesting?"#ccc":"#1f5a8a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:dbTesting?"default":"pointer",display:"flex",alignItems:"center",gap:6}}>{dbTesting?<><Spin/>Probando…</>:"🔌 Probar conexión"}</button>
+            {cfg.dbConnected&&<span style={{padding:"5px 10px",background:"#f0fdf4",border:"1px solid #86e8ac",borderRadius:8,fontSize:12,color:"#166534",fontWeight:700}}>✓ Conectado</span>}
+          </div>
+          {dbMsg&&<div style={{padding:"9px 12px",borderRadius:8,fontSize:13,background:dbMsg.startsWith("✅")?"#f0fdf4":"#fef9f0",border:`1px solid ${dbMsg.startsWith("✅")?"#86e8ac":"#f0c050"}`,color:dbMsg.startsWith("✅")?"#166534":"#7a4a00",fontWeight:500}}>{dbMsg}</div>}
+        </>}
+
+        {tab==="webhook"&&<>
+          <div style={{padding:"10px 12px",background:"#f5f0ff",borderRadius:8,fontSize:13,color:"#3a1a6a",border:"1px solid #c0a0f0",lineHeight:1.6}}>⚡ Se dispara junto con DB al confirmar cada pedido. Compatible con n8n, Make, Zapier.</div>
+          <div><div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>URL del Webhook</div>{inp("webhookUrl","https://n8n.tu-servidor.com/webhook/rotulado")}</div>
+          <Toggle label="Webhook activo" k="webhookEnabled" desc="Enviar POST al confirmar pedido"/>
+        </>}
+      </div>
+      <div style={{padding:"12px 18px",borderTop:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"0 0 14px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+        <span style={{fontSize:11,color:"#9a8070"}}>Los cambios se guardan automáticamente</span>
+        <button onClick={()=>{saveAI();persist(SK.settings,cfg);alert("✓ Configuración guardada correctamente");onClose();}} style={{padding:"10px 22px",background:"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>Guardar y cerrar</button>
+      </div>
+    </div>
+  </div>);
+}
+
+function App(){
+  const[cfg,setCfg]=useState(()=>({...DEFAULT_CFG,...(restore(SK.settings,{}))}));
+  const[orders,setOrders]=useState(()=>restore(SK.orders,SAMPLE));
+  const[tab,setTab]=useState("pegar");
+  const[view,setView]=useState("input");
+  const[page,setPage]=useState(1);
+  const[editingOrder,setEditingOrder]=useState(null);
+  const[showSettings,setShowSettings]=useState(false);
+  const[showPrint,setShowPrint]=useState(false);
+  const[logos,setLogos]=useState(()=>restore(SK.logos,[]));
+  const[winW,setWinW]=useState(window.innerWidth);
+  useEffect(()=>{const h=()=>setWinW(window.innerWidth);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
+  useEffect(()=>{persist(SK.settings,cfg);},[cfg]);
+  useEffect(()=>{persist(SK.orders,orders);},[orders]);
+  const isMobile=winW<640;const isTablet=winW>=640&&winW<1024;const isDesktop=winW>=1024;
+  const totalPages=Math.max(1,Math.ceil(orders.length/PER_PAGE));
+  const pageOrders=useMemo(()=>orders.slice((page-1)*PER_PAGE,page*PER_PAGE),[orders,page]);
+  useEffect(()=>{if(page>totalPages)setPage(totalPages);},[totalPages]);
+  const logoUrl=useMemo(()=>{if(!cfg.activeLogo)return null;const l=logos.find(l=>l.id===cfg.activeLogo);return l?l.dataUrl:null;},[cfg.activeLogo,logos]);
+  const addOrder=o=>{setOrders(p=>[...p,o]);if(isMobile||isTablet)setView("list");};
+  const removeOrder=id=>setOrders(p=>p.filter(x=>x.id!==id));
+  const saveOrder=o=>setOrders(p=>p.map(x=>x.id===o.id?o:x));
+  const A=cfg.accent;
+  const TabBtn=(id,label)=><button onClick={()=>setTab(id)} style={{flex:1,padding:"9px 8px",borderRadius:7,fontSize:isMobile?12:13,fontWeight:tab===id?700:500,color:tab===id?"#fff":"#6a5a4a",background:tab===id?A:"transparent",border:"none",cursor:"pointer",transition:".12s",whiteSpace:"nowrap"}}>{label}</button>;
+
+  const MobileNav=()=>(<div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:90,background:"#fdfaf6",borderTop:"2px solid #d0c8bc",display:"flex",padding:"0 4px"}}>
+    {[["input","➕","Nuevo"],["list","📦","Pedidos"],["preview","👁","Vista"]].map(([v,icon,label])=>(
+      <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+        <span style={{fontSize:20}}>{icon}</span><span style={{fontSize:10,fontWeight:view===v?700:500,color:view===v?A:"#8a7a6a"}}>{label}</span>
+      </button>
+    ))}
+    <button onClick={()=>setShowSettings(true)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+      <span style={{fontSize:20}}>⚙</span><span style={{fontSize:10,color:"#8a7a6a"}}>Config</span>
+    </button>
+    <button onClick={()=>setShowPrint(true)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+      <span style={{fontSize:20}}>🖨</span><span style={{fontSize:10,color:"#8a7a6a"}}>PDF</span>
+    </button>
+  </div>);
+
+  const TopBar=()=>(<div style={{display:"flex",alignItems:"center",gap:isMobile?8:12,padding:isMobile?"9px 12px":"11px 20px",borderBottom:"2px solid #d0c8bc",background:"#fffcf8",flexShrink:0,flexWrap:"wrap"}}>
+    <div style={{display:"flex",alignItems:"center",gap:7,fontWeight:800,fontSize:isMobile?15:17,letterSpacing:"-.03em",color:"#1c1a17"}}>
+      <div style={{width:9,height:9,borderRadius:2,background:A}}/>rotulado{!isMobile&&<span style={{fontFamily:"monospace",fontWeight:400,color:"#9a8a7a",fontSize:10}}>generador A4</span>}
+    </div>
+    <div style={{padding:"3px 10px",border:"1.5px solid #d0c0b0",borderRadius:999,fontSize:11,fontFamily:"monospace",color:"#5a4a3a",background:"#f5efe5"}}><strong style={{color:"#1c1a17"}}>{orders.length}</strong> · <strong style={{color:"#1c1a17"}}>{totalPages}p</strong></div>
+    <div style={{flex:1}}/>
+    {cfg.dbConnected&&<span style={{padding:"3px 8px",background:"#e8f4fd",border:"1px solid #90c8f0",borderRadius:8,fontSize:10,color:"#1a4a7a",fontWeight:700}}>🗄</span>}
+    {cfg.webhookEnabled&&cfg.webhookUrl&&<span style={{padding:"3px 8px",background:"#f0e8fd",border:"1px solid #c090f0",borderRadius:8,fontSize:10,color:"#5a1a9a",fontWeight:700}}>⚡</span>}
+    {!isMobile&&<button onClick={()=>setShowSettings(true)} style={{padding:"7px 12px",border:"1.5px solid #c8b8a8",borderRadius:8,background:"#fff",fontSize:12,cursor:"pointer",color:"#5a4a3a",fontWeight:600}}>⚙ Config</button>}
+    {!isMobile&&<button onClick={()=>setShowPrint(true)} style={{padding:"7px 14px",background:A,color:"#fff",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:700}}>🖨 Imprimir / PDF</button>}
+  </div>);
+
+  const InputPanel=()=>(<div style={{padding:"14px 16px",overflowY:"auto",flex:1}}>
+    <div style={{fontSize:9.5,textTransform:"uppercase",letterSpacing:".12em",color:"#9a8070",fontWeight:700,fontFamily:"monospace",marginBottom:10}}>Nuevo pedido</div>
+    <div style={{display:"flex",gap:4,background:"#ede8e0",padding:4,borderRadius:9,marginBottom:14,border:"1px solid #d0c8bc"}}>
+      {TabBtn("pegar","📋 Pegar / IA")}{TabBtn("foto","📷 Foto")}{TabBtn("form","✏️ Manual")}
+    </div>
+    {tab==="pegar"&&<PasteTab onConfirm={addOrder} cfg={cfg}/>}
+    {tab==="foto"&&<FotoTab onConfirm={addOrder} cfg={cfg}/>}
+    {tab==="form"&&<FormTab onAdd={addOrder} cfg={cfg}/>}
+  </div>);
+
+  const ListPanel=()=>(<div style={{display:"flex",flexDirection:"column",minHeight:0,flex:1,overflow:"hidden"}}>
+    <div style={{padding:"10px 16px 8px",fontSize:9.5,textTransform:"uppercase",letterSpacing:".12em",color:"#9a8070",fontWeight:700,fontFamily:"monospace",flexShrink:0,borderBottom:"1px solid #e0d8cc",background:"#f5f0e8"}}>Cola · {orders.length}</div>
+    <div style={{flex:1,overflowY:"auto",padding:"6px 10px 14px"}}>
+      {orders.length===0?<div style={{padding:"28px 18px",textAlign:"center",color:"#9a8a7a",fontSize:14,lineHeight:1.6}}><div style={{fontSize:32,marginBottom:10}}>📦</div>Sin pedidos.</div>
+      :orders.map((o,i)=>{const isCur=Math.floor(i/PER_PAGE)+1===page;return(<div key={o.id} onClick={()=>{setPage(Math.floor(i/PER_PAGE)+1);if(isMobile)setView("preview");}} style={{display:"flex",gap:8,alignItems:"center",padding:"10px",borderRadius:8,border:`1.5px solid ${isCur?"#c0a888":"#e0d8cc"}`,cursor:"pointer",marginBottom:6,background:isCur?"#fff7ef":"#fff",transition:".11s"}}>
+        <span style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:isCur?A:"#9a8a7a",minWidth:24}}>{String(i+1).padStart(2,"0")}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",color:"#1c1a17"}}>{o.nombres||<span style={{color:"#aaa",fontWeight:400}}>(sin nombre)</span>}</div>
+          <div style={{fontSize:12,color:"#8a7a6a",marginTop:2,fontFamily:"monospace",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.agencia||o.destino||"—"}</div>
+        </div>
+        <div style={{display:"flex",gap:3,flexShrink:0}}>
+          <button onClick={e=>{e.stopPropagation();setEditingOrder(o);}} style={{width:28,height:28,borderRadius:6,border:"1px solid #d0c8bc",background:"#fff",cursor:"pointer",fontSize:14,color:"#6a5a4a"}} title="Editar">✎</button>
+          <button onClick={e=>{e.stopPropagation();removeOrder(o.id);}} style={{width:28,height:28,borderRadius:6,border:"1px solid #f0c0b8",background:"#fff8f6",cursor:"pointer",fontSize:15,color:"#c04040",fontWeight:700}} title="Eliminar">×</button>
+        </div>
+      </div>);})}
+    </div>
+  </div>);
+
+  const PreviewPanel=()=>(<div style={{display:"flex",flexDirection:"column",overflow:"hidden",flex:1}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",borderBottom:"2px solid #d0c8bc",background:"#fdfaf6",flexShrink:0,flexWrap:"wrap"}}>
+      <span style={{fontFamily:"monospace",fontSize:9.5,textTransform:"uppercase",letterSpacing:".1em",color:"#9a8070",fontWeight:700}}>Vista previa</span>
+      <div style={{display:"flex",border:"1.5px solid #c8b8a8",borderRadius:7,overflow:"hidden",background:"#fff"}}>
+        {Array.from({length:totalPages},(_,i)=>i+1).map(p=><button key={p} onClick={()=>setPage(p)} style={{padding:"4px 10px",fontSize:12,border:"none",background:page===p?"#1c1a17":"transparent",color:page===p?"#fff":"#6a5a4a",cursor:"pointer",fontWeight:page===p?700:500}}>H{p}</button>)}
+      </div>
+      <div style={{flex:1}}/>
+      <button onClick={()=>setShowPrint(true)} style={{padding:"6px 12px",background:A,color:"#fff",border:"none",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>🖨 PDF</button>
+    </div>
+    <div style={{flex:1,overflow:"auto",display:"flex",justifyContent:"center",alignItems:"flex-start",padding:"20px 12px",background:"#e0dbd0"}}>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:10,width:"100%",maxWidth:600}}>
+        <div style={{background:"#fff",width:"100%",maxWidth:570,display:"grid",gridTemplateColumns:"1fr 1fr",boxShadow:"0 2px 8px rgba(0,0,0,.08),0 20px 50px -15px rgba(0,0,0,.2)",padding:isMobile?4:8,border:"1px solid #ddd"}}>
+          {[0,1,2,3,4,5].map(i=><LabelCard key={i} order={pageOrders[i]||null} idx={i} cfg={cfg} logoUrl={logoUrl}/>)}
+        </div>
+        <div style={{fontFamily:"monospace",fontSize:10,color:"#8a7a6a",textTransform:"uppercase",letterSpacing:".07em"}}>A4 · 210×297 mm</div>
+      </div>
+    </div>
+  </div>);
+
+  const Modals=()=>(<>
+    {editingOrder&&<EditModal order={editingOrder} onSave={o=>{saveOrder(o);setEditingOrder(null);}} onClose={()=>setEditingOrder(null)} cfg={cfg}/>}
+    {showSettings&&<SettingsModal cfg={cfg} setCfg={setCfg} logos={logos} setLogos={setLogos} onClose={()=>setShowSettings(false)}/>}
+    {showPrint&&<PrintModal orders={orders} page={page} totalPages={totalPages} cfg={cfg} logoUrl={logoUrl} onClose={()=>setShowPrint(false)}/>}
+  </>);
+
+  if(isDesktop)return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#e8e2d8"}}>
+    <TopBar/><div style={{flex:1,display:"grid",gridTemplateColumns:"390px 1fr",minHeight:0,overflow:"hidden"}}>
+      <div style={{borderRight:"2px solid #d0c8bc",display:"flex",flexDirection:"column",overflow:"hidden",background:"#faf6f0"}}>
+        <div style={{overflowY:"auto",maxHeight:"58%",background:"#fdfaf6",borderBottom:"2px solid #d0c8bc"}}><InputPanel/></div>
+        <ListPanel/>
+      </div>
+      <PreviewPanel/>
+    </div><Modals/>
+  </div>);
+
+  if(isTablet)return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#e8e2d8"}}>
+    <TopBar/><div style={{flex:1,display:"grid",gridTemplateColumns:"310px 1fr",minHeight:0,overflow:"hidden"}}>
+      <div style={{borderRight:"2px solid #d0c8bc",display:"flex",flexDirection:"column",overflow:"hidden",background:"#faf6f0"}}>
+        <div style={{display:"flex",borderBottom:"1px solid #d0c8bc",background:"#f5f0e8",flexShrink:0}}>
+          {[["input","➕ Nuevo"],["list","📦 "+orders.length]].map(([v,l])=><button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"9px",border:"none",borderBottom:`3px solid ${view===v?A:"transparent"}`,background:"transparent",fontSize:12,fontWeight:view===v?700:500,color:view===v?A:"#7a6a5a",cursor:"pointer"}}>{l}</button>)}
+        </div>
+        <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>{view==="input"?<InputPanel/>:<ListPanel/>}</div>
+      </div>
+      <PreviewPanel/>
+    </div><Modals/>
+  </div>);
+
+  return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#faf6f0",paddingBottom:65}}>
+    <TopBar/><div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+      {view==="input"&&<div style={{flex:1,overflowY:"auto"}}><InputPanel/></div>}
+      {view==="list"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",background:"#faf6f0"}}><ListPanel/></div>}
+      {view==="preview"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}><PreviewPanel/></div>}
+    </div>
+    <MobileNav/><Modals/>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
