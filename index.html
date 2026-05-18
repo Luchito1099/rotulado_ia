@@ -437,6 +437,55 @@ function PrintModal({orders,page,totalPages,cfg,logoUrl,onClose}){
   </div>);
 }
 
+function ShalomModal({orders,totalPages,products,onClose}){
+  const pageCount=p=>Math.min(PER_PAGE,orders.length-(p-1)*PER_PAGE);
+  const allPages=Array.from({length:totalPages},(_,i)=>i+1);
+  const[sel,setSel]=useState(()=>new Set(allPages));
+  const toggle=p=>setSel(prev=>{const s=new Set(prev);s.has(p)?s.delete(p):s.add(p);return s;});
+  const toggleAll=()=>setSel(sel.size===totalPages?new Set():new Set(allPages));
+  const selectedOrders=allPages.filter(p=>sel.has(p)).flatMap(p=>orders.slice((p-1)*PER_PAGE,p*PER_PAGE));
+  const go=()=>{exportarFormatoShalom(selectedOrders,products);onClose();};
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,zIndex:200}} onClick={onClose}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"#fdfaf6",borderRadius:14,width:"100%",maxWidth:460,border:"1.5px solid #d0c8bc"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 18px",borderBottom:"1px solid #e0d8cc",background:"#fff7ef",borderRadius:"14px 14px 0 0"}}>
+        <span style={{fontSize:15,fontWeight:700,color:"#3a2a1a"}}>📦 Exportar Formato Shalom</span>
+        <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#888",lineHeight:1,padding:0}}>×</button>
+      </div>
+      <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:12}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:13,fontWeight:600,color:"#5a4a3a"}}>Selecciona las hojas a exportar</span>
+          <button onClick={toggleAll} style={{padding:"4px 12px",border:"1.5px solid #d4820a",borderRadius:6,background:"transparent",fontSize:12,cursor:"pointer",color:"#d4820a",fontWeight:700}}>
+            {sel.size===totalPages?"Ninguna":"Todas"}
+          </button>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:260,overflowY:"auto"}}>
+          {allPages.map(p=>{
+            const n=pageCount(p);
+            const checked=sel.has(p);
+            return(<div key={p} onClick={()=>toggle(p)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:8,border:`1.5px solid ${checked?"#d4820a":"#e0d8cc"}`,background:checked?"#fff7ef":"#fff",cursor:"pointer",transition:".1s",userSelect:"none"}}>
+              <div style={{width:20,height:20,borderRadius:4,border:`2px solid ${checked?"#d4820a":"#ccc"}`,background:checked?"#d4820a":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:".1s"}}>
+                {checked&&<span style={{color:"#fff",fontSize:13,fontWeight:900,lineHeight:1}}>✓</span>}
+              </div>
+              <span style={{fontWeight:700,fontSize:14,color:"#3a2a1a"}}>Hoja {p}</span>
+              <span style={{fontSize:12,color:"#9a8070",fontFamily:"monospace"}}>{n} pedido{n!==1?"s":""}</span>
+              <div style={{flex:1,height:4,borderRadius:2,background:"#f0ece5",overflow:"hidden",marginLeft:4}}>
+                <div style={{width:`${(n/PER_PAGE)*100}%`,height:"100%",background:checked?"#d4820a":"#ccc",transition:".2s",borderRadius:2}}/>
+              </div>
+            </div>);
+          })}
+        </div>
+        <div style={{padding:"10px 12px",background:sel.size===0?"#fef2f2":"#f0fdf4",borderRadius:8,fontSize:13,border:`1px solid ${sel.size===0?"#f5b8b8":"#86e8ac"}`,color:sel.size===0?"#9b2020":"#166534",fontWeight:500,display:"flex",alignItems:"center",gap:8}}>
+          {sel.size===0?"⚠️ Selecciona al menos una hoja":`✓ ${selectedOrders.length} pedido${selectedOrders.length!==1?"s":""} en ${sel.size} hoja${sel.size!==1?"s":""}`}
+        </div>
+      </div>
+      <div style={{padding:"12px 18px",borderTop:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"0 0 14px 14px",display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button onClick={onClose} style={{padding:"10px 16px",background:"#fff",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,cursor:"pointer",color:"#555",fontWeight:500}}>Cancelar</button>
+        <button onClick={go} disabled={sel.size===0} style={{padding:"10px 22px",background:sel.size===0?"#c8a090":"#d4820a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:sel.size===0?"default":"pointer"}}>📦 Exportar .xlsx</button>
+      </div>
+    </div>
+  </div>);
+}
+
 function TestAIBtn(){
   const[testing,setTesting]=useState(false);
   const[testMsg,setTestMsg]=useState("");
@@ -666,6 +715,7 @@ function App(){
   const[editingOrder,setEditingOrder]=useState(null);
   const[showSettings,setShowSettings]=useState(false);
   const[showPrint,setShowPrint]=useState(false);
+  const[showShalom,setShowShalom]=useState(false);
   const[logos,setLogos]=useState(()=>restore(SK.logos,[]));
   const[products,setProducts]=useState(()=>restore(SK.products,DEFAULT_PRODUCTS));
   const[winW,setWinW]=useState(window.innerWidth);
@@ -693,7 +743,7 @@ function App(){
     <button onClick={()=>setShowSettings(true)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
       <span style={{fontSize:20}}>⚙</span><span style={{fontSize:10,color:"#8a7a6a"}}>Config</span>
     </button>
-    <button onClick={()=>exportarFormatoShalom(orders,products)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+    <button onClick={()=>setShowShalom(true)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
       <span style={{fontSize:20}}>📦</span><span style={{fontSize:10,color:"#8a7a6a"}}>Shalom</span>
     </button>
     <button onClick={()=>setShowPrint(true)} style={{flex:1,padding:"10px 4px 12px",border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
@@ -710,7 +760,7 @@ function App(){
     {cfg.dbConnected&&<span style={{padding:"3px 8px",background:"#e8f4fd",border:"1px solid #90c8f0",borderRadius:8,fontSize:10,color:"#1a4a7a",fontWeight:700}}>🗄</span>}
     {cfg.webhookEnabled&&cfg.webhookUrl&&<span style={{padding:"3px 8px",background:"#f0e8fd",border:"1px solid #c090f0",borderRadius:8,fontSize:10,color:"#5a1a9a",fontWeight:700}}>⚡</span>}
     {!isMobile&&<button onClick={()=>setShowSettings(true)} style={{padding:"7px 12px",border:"1.5px solid #c8b8a8",borderRadius:8,background:"#fff",fontSize:12,cursor:"pointer",color:"#5a4a3a",fontWeight:600}}>⚙ Config</button>}
-    {!isMobile&&<button onClick={()=>exportarFormatoShalom(orders,products)} style={{padding:"7px 14px",background:"#d4820a",color:"#fff",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:700}}>📦 Exportar Shalom</button>}
+    {!isMobile&&<button onClick={()=>setShowShalom(true)} style={{padding:"7px 14px",background:"#d4820a",color:"#fff",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:700}}>📦 Exportar Shalom</button>}
     {!isMobile&&<button onClick={()=>setShowPrint(true)} style={{padding:"7px 14px",background:A,color:"#fff",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:700}}>🖨 Imprimir / PDF</button>}
   </div>);
 
@@ -749,7 +799,7 @@ function App(){
         {Array.from({length:totalPages},(_,i)=>i+1).map(p=><button key={p} onClick={()=>setPage(p)} style={{padding:"4px 10px",fontSize:12,border:"none",background:page===p?"#1c1a17":"transparent",color:page===p?"#fff":"#6a5a4a",cursor:"pointer",fontWeight:page===p?700:500}}>H{p}</button>)}
       </div>
       <div style={{flex:1}}/>
-      <button onClick={()=>exportarFormatoShalom(orders,products)} style={{padding:"6px 12px",background:"#d4820a",color:"#fff",border:"none",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>📦 Shalom</button>
+      <button onClick={()=>setShowShalom(true)} style={{padding:"6px 12px",background:"#d4820a",color:"#fff",border:"none",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>📦 Shalom</button>
       <button onClick={()=>setShowPrint(true)} style={{padding:"6px 12px",background:A,color:"#fff",border:"none",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>🖨 PDF</button>
     </div>
     <div style={{flex:1,overflow:"auto",display:"flex",justifyContent:"center",alignItems:"flex-start",padding:"20px 12px",background:"#e0dbd0"}}>
@@ -766,6 +816,7 @@ function App(){
     {editingOrder&&<EditModal order={editingOrder} onSave={o=>{saveOrder(o);setEditingOrder(null);}} onClose={()=>setEditingOrder(null)} cfg={cfg} products={products}/>}
     {showSettings&&<SettingsModal cfg={cfg} setCfg={setCfg} logos={logos} setLogos={setLogos} products={products} setProducts={setProducts} onClose={()=>setShowSettings(false)}/>}
     {showPrint&&<PrintModal orders={orders} page={page} totalPages={totalPages} cfg={cfg} logoUrl={logoUrl} onClose={()=>setShowPrint(false)}/>}
+    {showShalom&&<ShalomModal orders={orders} totalPages={totalPages} products={products} onClose={()=>setShowShalom(false)}/>}
   </>);
 
   if(isDesktop)return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#e8e2d8"}}>
