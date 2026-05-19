@@ -71,7 +71,7 @@ const AGENCIA_DEPT=(()=>{
 const DEPARTAMENTOS=Array.from(new Set(Object.values(AGENCIA_DEPT))).sort((a,b)=>a.localeCompare(b,"es"));
 const deptOf=name=>AGENCIA_DEPT[name]||"";
 
-const SK={settings:"rot_cfg_v3",logos:"rot_logos_v1",orders:"rot_orders_v1",products:"rot_products_v1",sync:"rot_sync_v1",mode:"rot_mode_v1",segView:"rot_segview_v1",estados:"rot_estados_v1"};
+const SK={settings:"rot_cfg_v3",logos:"rot_logos_v1",orders:"rot_orders_v1",products:"rot_products_v1",sync:"rot_sync_v1",mode:"rot_mode_v1",segView:"rot_segview_v1",estados:"rot_estados_v1",hidden:"rot_hidden_v1"};
 const DEFAULT_ESTADOS=["Nuevo","Interesado","Por yapear","Pagado","Enviado","Entregado","Descartado"];
 const METODOS_PAGO=["","Yape","Plin","Efectivo","Transferencia","Otro"];
 const ESTADO_COLORS={"Nuevo":"#6b7280","Interesado":"#1f5a8a","Por yapear":"#d4820a","Pagado":"#2f6b3b","Enviado":"#6a3b7a","Entregado":"#166534","Descartado":"#9b2020"};
@@ -611,7 +611,7 @@ function TestAIBtn(){
   </>);
 }
 
-function SettingsModal({cfg,setCfg,logos,setLogos,products,setProducts,syncCfg,setSyncCfg,doSync,syncStatus,estados,setEstados,onClose}){
+function SettingsModal({cfg,setCfg,logos,setLogos,products,setProducts,syncCfg,setSyncCfg,doSync,syncStatus,estados,setEstados,hiddenIds,setHiddenIds,onClose}){
   const[tab,setTab]=useState("marca");
   const[localEstados,setLocalEstados]=useState(()=>[...(estados||DEFAULT_ESTADOS)]);
   const[newEstado,setNewEstado]=useState("");
@@ -897,6 +897,17 @@ alter table pedidos
             </button>
             {syncStatus==="error"&&<div style={{padding:"9px 12px",borderRadius:8,fontSize:13,background:"#fef2f2",border:"1px solid #f5b8b8",color:"#9b2020",fontWeight:500}}>❌ Error de conexión. Verifica la URL y el API Key.</div>}
             {syncStatus==="ok"&&<div style={{padding:"9px 12px",borderRadius:8,fontSize:13,background:"#f0fdf4",border:"1px solid #86e8ac",color:"#166534",fontWeight:500}}>✓ Tus pedidos están sincronizados en la nube.</div>}
+
+            <div style={{borderTop:"1px solid #e0d8cc",marginTop:6,paddingTop:12}}>
+              <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:6}}>🗑 Papelera local</div>
+              <div style={{padding:"10px 12px",background:"#fffbf0",borderRadius:8,fontSize:12.5,color:"#7a5a1a",border:"1px solid #e8d090",lineHeight:1.6,marginBottom:8}}>
+                Cuando borras un pedido con el botón ×, <strong>no se elimina de Supabase</strong>, solo se oculta localmente. Así puedes recuperarlo después o conservar el historial completo en la nube.
+              </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"9px 12px",border:"1px solid #e0d8cc",borderRadius:8,background:"#fff"}}>
+                <span style={{fontSize:13,color:"#3a2a1a"}}><strong>{(hiddenIds||[]).length}</strong> pedido{(hiddenIds||[]).length!==1?"s":""} ocult{(hiddenIds||[]).length!==1?"os":"o"}</span>
+                <button onClick={()=>{if((hiddenIds||[]).length===0)return;if(confirm(`Restaurar ${hiddenIds.length} pedido(s) desde Supabase?`)){setHiddenIds([]);doSync();}}} disabled={(hiddenIds||[]).length===0} style={{padding:"7px 14px",background:(hiddenIds||[]).length===0?"#ccc":"#2f6b3b",color:"#fff",border:"none",borderRadius:7,fontSize:12,fontWeight:700,cursor:(hiddenIds||[]).length===0?"default":"pointer"}}>↩ Restaurar todos</button>
+              </div>
+            </div>
           </div>
         </>}
       </div>
@@ -1095,6 +1106,9 @@ function App(){
   const[syncStatus,setSyncStatus]=useState("off"); // off|syncing|ok|error
   const[lastSync,setLastSync]=useState(null);
   const[mode,setMode]=useState(()=>restore(SK.mode,"rotulador"));
+  const[hiddenIds,setHiddenIds]=useState(()=>restore(SK.hidden,[]));
+  const hiddenRef=useRef(hiddenIds);hiddenRef.current=hiddenIds;
+  useEffect(()=>{persist(SK.hidden,hiddenIds);},[hiddenIds]);
   const[segView,setSegView]=useState(()=>restore(SK.segView,"kanban"));
   const[estados,setEstados]=useState(()=>restore(SK.estados,DEFAULT_ESTADOS));
   const[segFilter,setSegFilter]=useState({estado:null,query:""});
@@ -1122,7 +1136,8 @@ function App(){
     setSyncStatus("syncing");
     try{
       const data=await cloudPull(c);
-      setOrders(data.map(o=>({...o,id:Number(o.id)})));
+      const hide=new Set((hiddenRef.current||[]).map(Number));
+      setOrders(data.map(o=>({...o,id:Number(o.id)})).filter(o=>!hide.has(o.id)));
       setSyncStatus("ok");setLastSync(new Date());
     }catch{setSyncStatus("error");}
   };
@@ -1142,8 +1157,7 @@ function App(){
   };
   const removeOrder=id=>{
     setOrders(p=>p.filter(x=>x.id!==id));
-    const c=syncRef.current;
-    if(c.enabled&&c.url&&c.key)cloudDelete(c,id).then(()=>setSyncStatus("ok")).catch(()=>setSyncStatus("error"));
+    setHiddenIds(p=>p.includes(Number(id))?p:[...p,Number(id)]);
   };
   const saveOrder=o=>{
     setOrders(p=>p.map(x=>x.id===o.id?o:x));
@@ -1245,7 +1259,7 @@ function App(){
   const Modals=()=>(<>
     {editingOrder&&<EditModal order={editingOrder} onSave={o=>{saveOrder(o);setEditingOrder(null);}} onClose={()=>setEditingOrder(null)} cfg={cfg} products={products}/>}
     {seguimientoOrder&&<SeguimientoModal order={seguimientoOrder} estados={estados} onSave={o=>{saveOrder(o);setSeguimientoOrder(null);}} onClose={()=>setSeguimientoOrder(null)}/>}
-    {showSettings&&<SettingsModal cfg={cfg} setCfg={setCfg} logos={logos} setLogos={setLogos} products={products} setProducts={setProducts} syncCfg={syncCfg} setSyncCfg={setSyncCfg} doSync={doSync} syncStatus={syncStatus} estados={estados} setEstados={setEstados} onClose={()=>setShowSettings(false)}/>}
+    {showSettings&&<SettingsModal cfg={cfg} setCfg={setCfg} logos={logos} setLogos={setLogos} products={products} setProducts={setProducts} syncCfg={syncCfg} setSyncCfg={setSyncCfg} doSync={doSync} syncStatus={syncStatus} estados={estados} setEstados={setEstados} hiddenIds={hiddenIds} setHiddenIds={setHiddenIds} onClose={()=>setShowSettings(false)}/>}
     {showPrint&&<PrintModal orders={orders} page={page} totalPages={totalPages} cfg={cfg} logoUrl={logoUrl} onClose={()=>setShowPrint(false)}/>}
     {showShalom&&<ShalomModal orders={orders} totalPages={totalPages} products={products} onClose={()=>setShowShalom(false)}/>}
   </>);
