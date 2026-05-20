@@ -226,9 +226,22 @@ async function cloudPull(c){
   if(!r.ok)throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
+const BASE_COLS=["id","nombres","destino","agencia","celular","dni","producto","created_at","brand"];
+const stripToBase=o=>{const out={};BASE_COLS.forEach(k=>{if(o[k]!==undefined)out[k]=o[k];});return out;};
 async function cloudUpsert(c,o){
-  const r=await fetch(`${c.url}/rest/v1/${c.table||"pedidos"}`,{method:"POST",headers:{...cloudH(c),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify(o)});
-  if(!r.ok)throw new Error(`HTTP ${r.status}`);
+  let r=await fetch(`${c.url}/rest/v1/${c.table||"pedidos"}`,{method:"POST",headers:{...cloudH(c),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify(o)});
+  if(!r.ok){
+    const txt=await r.text().catch(()=>"");
+    // Fallback: si el error es por columna desconocida (PGRST204), reintenta con columnas base
+    if(r.status===400&&/PGRST204|column|schema cache/i.test(txt)){
+      const base=stripToBase(o);
+      r=await fetch(`${c.url}/rest/v1/${c.table||"pedidos"}`,{method:"POST",headers:{...cloudH(c),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify(base)});
+      if(r.ok){const e=new Error("SCHEMA_FALLBACK");e.fallback=true;throw e;}
+      const txt2=await r.text().catch(()=>"");
+      throw new Error(`HTTP ${r.status}: ${txt2.slice(0,200)}`);
+    }
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0,200)}`);
+  }
 }
 async function cloudDelete(c,id){
   const r=await fetch(`${c.url}/rest/v1/${c.table||"pedidos"}?id=eq.${id}`,{method:"DELETE",headers:cloudH(c)});
@@ -1130,16 +1143,38 @@ function App(){
   useEffect(()=>{if(page>totalPages)setPage(totalPages);},[totalPages]);
   const logoUrl=useMemo(()=>{if(!cfg.activeLogo)return null;const l=logos.find(l=>l.id===cfg.activeLogo);return l?l.dataUrl:null;},[cfg.activeLogo,logos]);
 
+  const[syncMsg,setSyncMsg]=useState("");
   const doSync=async()=>{
     const c=syncRef.current;
     if(!c.enabled||!c.url||!c.key){setSyncStatus("off");return;}
-    setSyncStatus("syncing");
+    setSyncStatus("syncing");setSyncMsg("");
     try{
-      const data=await cloudPull(c);
+      const cloudData=await cloudPull(c);
       const hide=new Set((hiddenRef.current||[]).map(Number));
-      setOrders(data.map(o=>({...o,id:Number(o.id)})).filter(o=>!hide.has(o.id)));
+      const cloudById=new Map(cloudData.map(o=>[Number(o.id),{...o,id:Number(o.id)}]));
+      let schemaWarn=false;
+      setOrders(prev=>{
+        const localById=new Map(prev.map(o=>[Number(o.id),o]));
+        const allIds=new Set([...localById.keys(),...cloudById.keys()]);
+        const merged=[];
+        const toUpload=[];
+        for(const id of allIds){
+          if(hide.has(id))continue;
+          const l=localById.get(id),r=cloudById.get(id);
+          if(l&&r){
+            const lt=new Date(l.updated_at||0).getTime();
+            const rt=new Date(r.updated_at||0).getTime();
+            if(lt>rt){merged.push(l);toUpload.push(l);}else merged.push({...l,...r});
+          }else if(l){merged.push(l);toUpload.push(l);}
+          else merged.push(r);
+        }
+        // Fire-and-forget re-subida de los que solo existen en local o tienen versión más nueva
+        toUpload.forEach(o=>cloudUpsert(c,{...o,id:Number(o.id)}).catch(e=>{if(e&&e.fallback)schemaWarn=true;}));
+        return merged.sort((a,b)=>Number(a.id)-Number(b.id));
+      });
       setSyncStatus("ok");setLastSync(new Date());
-    }catch{setSyncStatus("error");}
+      if(schemaWarn)setSyncMsg("⚠ Tu tabla de Supabase no tiene las columnas del modo Seguimiento. Se guardaron solo los campos básicos. Corre el ALTER TABLE en Configuración → Sync.");
+    }catch(e){setSyncStatus("error");setSyncMsg(String(e&&e.message||e));}
   };
   useEffect(()=>{
     if(!syncCfg.enabled){setSyncStatus("off");return;}
@@ -1148,21 +1183,28 @@ function App(){
     return()=>clearInterval(t);
   },[syncCfg.enabled,syncCfg.url,syncCfg.key]);
 
+  const pushToCloud=(o)=>{
+    const c=syncRef.current;
+    if(!c.enabled||!c.url||!c.key)return;
+    cloudUpsert(c,{...o,id:Number(o.id)}).then(()=>{setSyncStatus("ok");setSyncMsg("");}).catch(e=>{
+      if(e&&e.fallback){setSyncStatus("ok");setSyncMsg("⚠ Faltan columnas en Supabase — guardado solo con campos básicos. Corre el ALTER TABLE.");}
+      else{setSyncStatus("error");setSyncMsg(String(e&&e.message||e));}
+    });
+  };
   const addOrder=o=>{
     const enriched={estado:estados[0]||"Nuevo",updated_at:new Date().toISOString(),...o};
     setOrders(p=>[...p,enriched]);
     if(isMobile||isTablet)setView("list");
-    const c=syncRef.current;
-    if(c.enabled&&c.url&&c.key)cloudUpsert(c,{...enriched,id:Number(enriched.id)}).then(()=>setSyncStatus("ok")).catch(()=>setSyncStatus("error"));
+    pushToCloud(enriched);
   };
   const removeOrder=id=>{
     setOrders(p=>p.filter(x=>x.id!==id));
     setHiddenIds(p=>p.includes(Number(id))?p:[...p,Number(id)]);
   };
   const saveOrder=o=>{
-    setOrders(p=>p.map(x=>x.id===o.id?o:x));
-    const c=syncRef.current;
-    if(c.enabled&&c.url&&c.key)cloudUpsert(c,{...o,id:Number(o.id)}).then(()=>setSyncStatus("ok")).catch(()=>setSyncStatus("error"));
+    const stamped={...o,updated_at:new Date().toISOString()};
+    setOrders(p=>p.map(x=>x.id===o.id?stamped:x));
+    pushToCloud(stamped);
   };
   const A=cfg.accent;
   const TabBtn=(id,label)=><button onClick={()=>setTab(id)} style={{flex:1,padding:"9px 8px",borderRadius:7,fontSize:isMobile?12:13,fontWeight:tab===id?700:500,color:tab===id?"#fff":"#6a5a4a",background:tab===id?A:"transparent",border:"none",cursor:"pointer",transition:".12s",whiteSpace:"nowrap"}}>{label}</button>;
@@ -1195,9 +1237,9 @@ function App(){
     <div style={{flex:1}}/>
     {cfg.dbConnected&&<span style={{padding:"3px 8px",background:"#e8f4fd",border:"1px solid #90c8f0",borderRadius:8,fontSize:10,color:"#1a4a7a",fontWeight:700}}>🗄</span>}
     {cfg.webhookEnabled&&cfg.webhookUrl&&<span style={{padding:"3px 8px",background:"#f0e8fd",border:"1px solid #c090f0",borderRadius:8,fontSize:10,color:"#5a1a9a",fontWeight:700}}>⚡</span>}
-    {syncCfg.enabled&&<button onClick={doSync} title={lastSync?`Última sync: ${lastSync.toLocaleTimeString()}`:"Sin sync aún"} style={{display:"flex",alignItems:"center",gap:5,padding:"3px 9px",border:`1.5px solid ${syncStatus==="ok"?"#86e8ac":syncStatus==="error"?"#f5b8b8":syncStatus==="syncing"?"#90c8f0":"#d0c8bc"}`,borderRadius:8,background:syncStatus==="ok"?"#f0fdf4":syncStatus==="error"?"#fef2f2":syncStatus==="syncing"?"#e8f4fd":"#f5efe5",fontSize:10,cursor:"pointer",fontWeight:700,color:syncStatus==="ok"?"#166534":syncStatus==="error"?"#9b2020":syncStatus==="syncing"?"#1a4a7a":"#7a6a5a"}}>
+    {syncCfg.enabled&&<button onClick={()=>{if(syncMsg)alert(syncMsg);doSync();}} title={syncMsg||(lastSync?`Última sync: ${lastSync.toLocaleTimeString()}`:"Sin sync aún")} style={{display:"flex",alignItems:"center",gap:5,padding:"3px 9px",border:`1.5px solid ${syncStatus==="ok"?"#86e8ac":syncStatus==="error"?"#f5b8b8":syncStatus==="syncing"?"#90c8f0":"#d0c8bc"}`,borderRadius:8,background:syncStatus==="ok"?"#f0fdf4":syncStatus==="error"?"#fef2f2":syncStatus==="syncing"?"#e8f4fd":"#f5efe5",fontSize:10,cursor:"pointer",fontWeight:700,color:syncStatus==="ok"?"#166534":syncStatus==="error"?"#9b2020":syncStatus==="syncing"?"#1a4a7a":"#7a6a5a"}}>
       <span style={{display:"inline-block",animation:syncStatus==="syncing"?"spin .7s linear infinite":"none"}}>☁️</span>
-      {syncStatus==="ok"?"Sync ✓":syncStatus==="error"?"Sync ✗":syncStatus==="syncing"?"Sincronizando…":"Sync"}
+      {syncStatus==="ok"?(syncMsg?"Sync ⚠":"Sync ✓"):syncStatus==="error"?"Sync ✗":syncStatus==="syncing"?"Sincronizando…":"Sync"}
     </button>}
     {!isMobile&&<button onClick={()=>setShowSettings(true)} style={{padding:"7px 12px",border:"1.5px solid #c8b8a8",borderRadius:8,background:"#fff",fontSize:12,cursor:"pointer",color:"#5a4a3a",fontWeight:600}}>⚙ Config</button>}
     {!isMobile&&mode==="rotulador"&&<button onClick={()=>setShowShalom(true)} style={{padding:"7px 14px",background:"#d4820a",color:"#fff",border:"none",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:700}}>📦 Exportar Shalom</button>}
