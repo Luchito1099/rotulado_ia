@@ -179,7 +179,7 @@ function exportarFormatoShalom(orders,products){
       o.dni||"",tel,"","","","PUNTA HERMOSA",
       buscarDestinoShalom(o.agencia||o.destino||""),
       detectarMercaderia(o.producto||"",products),
-      0.1,0.1,0.1,1,1
+      0.1,0.1,0.1,1,Number(o.cantidad)||1
     ];
   });
   const ws=XLSX.utils.aoa_to_sheet([headers,...filas]);
@@ -226,7 +226,7 @@ async function cloudPull(c){
   if(!r.ok)throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
-const BASE_COLS=["id","nombres","destino","agencia","celular","dni","producto","created_at","brand"];
+const BASE_COLS=["id","nombres","destino","agencia","celular","dni","producto","created_at","brand","cantidad"];
 const stripToBase=o=>{const out={};BASE_COLS.forEach(k=>{if(o[k]!==undefined)out[k]=o[k];});return out;};
 async function cloudUpsert(c,o){
   let r=await fetch(`${c.url}/rest/v1/${c.table||"pedidos"}`,{method:"POST",headers:{...cloudH(c),"Prefer":"resolution=merge-duplicates"},body:JSON.stringify(o)});
@@ -434,6 +434,10 @@ function PreviewCard({data,onConfirm,onCancel,cfg,products}){
         <div>{lbl("DNI")}{inp("dni","70123456")}</div>
       </div>
       <div>{lbl("Producto")}<AcInput value={f.producto} onChange={v=>set("producto",v)} placeholder="TOBILLERA NOVAFIT…" suggestions={(products||[]).map(p=>p.nombre)}/></div>
+      <div style={{display:"grid",gridTemplateColumns:"80px 1fr",gap:9,alignItems:"end"}}>
+        <div>{lbl("Cantidad")}<input type="number" min={1} max={99} value={f.cantidad||1} onChange={e=>set("cantidad",Math.max(1,parseInt(e.target.value)||1))} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontWeight:700,textAlign:"center"}}/></div>
+        {(f.cantidad||1)>1&&<div style={{padding:"8px 10px",background:"#fff7ef",borderRadius:8,fontSize:12,color:"#7a4a00",border:"1px solid #e8c880",alignSelf:"end"}}>{f.cantidad} unidades</div>}
+      </div>
     </div>
     {res&&<div style={{padding:"8px 14px",background:"#f0fdf4",borderTop:"1px solid #ddd8ce",fontSize:12,display:"flex",gap:8}}>
       {res.db&&<span style={{color:res.db==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.db==="ok"?"✓ DB guardado":"✗ DB error"}</span>}
@@ -486,7 +490,7 @@ function FotoTab({onConfirm,cfg,products}){
 }
 
 function FormTab({onAdd,cfg,products}){
-  const E={nombres:"",destino:"",agencia:"",celular:"",dni:"",producto:""};
+  const E={nombres:"",destino:"",agencia:"",celular:"",dni:"",producto:"",cantidad:1};
   const[f,setF]=useState(E);const[sending,setSending]=useState(false);const[res,setRes]=useState(null);
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const hasInt=(cfg.dbConnected&&cfg.dbUrl)||(cfg.webhookEnabled&&cfg.webhookUrl);
@@ -502,6 +506,10 @@ function FormTab({onAdd,cfg,products}){
       <div>{lbl("DNI")}{inp("dni","70123456")}</div>
     </div>
     <div>{lbl("Producto")}<AcInput value={f.producto} onChange={v=>set("producto",v)} placeholder="TOBILLERA NOVAFIT…" suggestions={(products||[]).map(p=>p.nombre)}/></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 3fr",gap:9,alignItems:"end"}}>
+      <div>{lbl("Cantidad")}<input type="number" min={1} max={99} value={f.cantidad||1} onChange={e=>set("cantidad",Math.max(1,parseInt(e.target.value)||1))} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontWeight:700,textAlign:"center"}}/></div>
+      <div style={{padding:"8px 12px",background:"#f5f0e8",borderRadius:8,fontSize:12,color:"#7a6a5a",border:"1px solid #e0d8cc"}}>{f.cantidad>1?`${f.cantidad} unidades del mismo producto en un pedido`:"1 unidad (por defecto)"}</div>
+    </div>
     {res&&<div style={{padding:"8px 10px",borderRadius:8,fontSize:12,background:"#f0fdf4",border:"1px solid #86e8ac",display:"flex",gap:8}}>
       {res.db&&<span style={{color:res.db==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.db==="ok"?"✓ DB":"✗ DB"}</span>}
       {res.webhook&&<span style={{color:res.webhook==="ok"?"#166534":"#9b2020",fontWeight:600}}>{res.webhook==="ok"?"✓ Webhook":"✗ Webhook"}</span>}
@@ -531,6 +539,10 @@ function EditModal({order,onSave,onClose,cfg,products}){
           <div>{lbl("DNI")}{inp("dni","DNI")}</div>
         </div>
         <div>{lbl("Producto")}<AcInput value={f.producto} onChange={v=>set("producto",v)} placeholder="TOBILLERA…" suggestions={(products||[]).map(p=>p.nombre)}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"80px 1fr",gap:10,alignItems:"end"}}>
+          <div>{lbl("Cantidad")}<input type="number" min={1} max={99} value={f.cantidad||1} onChange={e=>set("cantidad",Math.max(1,parseInt(e.target.value)||1))} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontWeight:700,textAlign:"center"}}/></div>
+          {(f.cantidad||1)>1&&<div style={{padding:"9px 11px",background:"#fff7ef",borderRadius:8,fontSize:12,color:"#7a4a00",border:"1px solid #e8c880",alignSelf:"end"}}>{f.cantidad} unidades del pedido</div>}
+        </div>
       </div>
       <div style={{padding:"12px 18px",borderTop:"1px solid #e0d8cc",display:"flex",justifyContent:"flex-end",gap:8,background:"#f5f0e8"}}>
         <button onClick={onClose} style={{padding:"9px 16px",background:"#fff",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,cursor:"pointer",color:"#555",fontWeight:500}}>Cancelar</button>
@@ -648,7 +660,8 @@ function SettingsModal({cfg,setCfg,logos,setLogos,products,setProducts,syncCfg,s
   const[aiCfg,setAiCfgState]=useState(()=>({provider:"anthropic",...getAICfg()}));
   const aiCfgRef=useRef(aiCfg);
   const[prompt,setPromptState]=useState(getPrompt);
-  const setAi=(k,v)=>{const next={...aiCfgRef.current,[k]:v};aiCfgRef.current=next;setAiCfgState(next);};
+  const setAi=(k,v)=>{const next={...aiCfgRef.current,[k]:v};aiCfgRef.current=next;setAiCfgState(next);saveAICfg(next);};
+  const handlePrompt=v=>{setPromptState(v);savePrompt(v);};
   const saveAI=()=>{saveAICfg(aiCfgRef.current);savePrompt(prompt);};
   const currentProvider=AI_PROVIDERS[aiCfg.provider]||AI_PROVIDERS.custom;
   const[uploading,setUploading]=useState(false);
@@ -671,13 +684,16 @@ function SettingsModal({cfg,setCfg,logos,setLogos,products,setProducts,syncCfg,s
   const Toggle=({label,k,desc})=>(<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 11px",border:"1px solid #e0d8cc",borderRadius:8,background:"#fff",gap:10}}><div><div style={{fontSize:14,fontWeight:600,color:"#3a2a1a"}}>{label}</div>{desc&&<div style={{fontSize:12,color:"#9a8070",marginTop:2}}>{desc}</div>}</div><div onClick={()=>set(k,!cfg[k])} style={{width:34,height:20,borderRadius:999,background:cfg[k]?"#1c1a17":"#d4cfc4",position:"relative",cursor:"pointer",transition:".14s",flexShrink:0}}><div style={{position:"absolute",top:3,left:cfg[k]?17:3,width:14,height:14,borderRadius:"50%",background:"#fff",transition:".14s",boxShadow:"0 1px 2px #0003"}}/></div></div>);
   const inp=(k,ph,type="text")=><input type={type} value={cfg[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:14,background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>;
 
-  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16,zIndex:100}} onClick={onClose}>
-    <div onClick={e=>e.stopPropagation()} style={{background:"#fdfaf6",borderRadius:14,width:"100%",maxWidth:540,maxHeight:"94vh",display:"flex",flexDirection:"column",border:"1.5px solid #d0c8bc"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 18px",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"14px 14px 0 0"}}><span style={{fontSize:15,fontWeight:700,color:"#3a2a1a"}}>⚙ Configuración</span><button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#888",lineHeight:1,padding:0}}>×</button></div>
+  return(<div style={{position:"fixed",inset:0,background:"#fdfaf6",display:"flex",flexDirection:"column",zIndex:100}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 18px",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",flexShrink:0}}>
+        <span style={{fontSize:15,fontWeight:700,color:"#3a2a1a"}}>⚙ Configuración</span>
+        <button onClick={onClose} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 14px",background:"#fff",border:"1.5px solid #d0c8bc",borderRadius:8,fontSize:13,cursor:"pointer",color:"#5a4a3a",fontWeight:600}}>← Volver</button>
+      </div>
       <div style={{display:"flex",borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",flexShrink:0,overflowX:"auto"}}>
         {TABS.map(([id,label])=><button key={id} onClick={()=>setTab(id)} style={{flexShrink:0,padding:"10px 12px",border:"none",borderBottom:`3px solid ${tab===id?"#c0532a":"transparent"}`,background:"transparent",fontSize:11,fontWeight:tab===id?700:500,color:tab===id?"#c0532a":"#7a6a5a",cursor:"pointer",whiteSpace:"nowrap"}}>{label}</button>)}
       </div>
-      <div style={{flex:1,overflowY:"auto",padding:"16px 18px",display:"flex",flexDirection:"column",gap:14}}>
+      <div style={{flex:1,overflowY:"auto",padding:"16px 18px",maxWidth:640,width:"100%",margin:"0 auto",display:"flex",flexDirection:"column",gap:14}}>
 
         {tab==="marca"&&<>
           <div style={{display:"grid",gridTemplateColumns:"1fr 72px",gap:10}}>
@@ -775,7 +791,7 @@ function SettingsModal({cfg,setCfg,logos,setLogos,products,setProducts,syncCfg,s
           <div style={{borderTop:"1px solid #e0d8cc",paddingTop:14}}>
             <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:6}}>Prompt de extracción</div>
             <div style={{fontSize:12,color:"#8a7a6a",marginBottom:8,lineHeight:1.5}}>Este es el prompt que se envía a la IA para extraer los datos del pedido. Ajústalo si los resultados no son precisos para tu tipo de texto.</div>
-            <textarea value={prompt} onChange={e=>setPromptState(e.target.value)} style={{width:"100%",minHeight:160,padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:12,fontFamily:"monospace",lineHeight:1.6,resize:"vertical",background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>
+            <textarea value={prompt} onChange={e=>handlePrompt(e.target.value)} style={{width:"100%",minHeight:160,padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:12,fontFamily:"monospace",lineHeight:1.6,resize:"vertical",background:"#fff",color:"#1a1a1a",boxSizing:"border-box"}}/>
             <button onClick={()=>setPromptState(DEFAULT_PROMPT)} style={{marginTop:6,padding:"6px 12px",background:"#fff",border:"1.5px solid #d0c8bc",borderRadius:7,fontSize:12,cursor:"pointer",color:"#7a6a5a",fontWeight:500}}>
               ↩ Restaurar prompt por defecto
             </button>
@@ -868,7 +884,8 @@ function SettingsModal({cfg,setCfg,logos,setLogos,products,setProducts,syncCfg,s
   nombres text, destino text,
   agencia text, celular text,
   dni text, producto text,
-  created_at text, brand text
+  created_at text, brand text,
+  cantidad integer default 1
 );
 alter table pedidos enable row level security;
 create policy "acceso" on pedidos
@@ -877,6 +894,7 @@ create policy "acceso" on pedidos
 
 -- 👁 Columnas para el modo Seguimiento (CRM):
 alter table pedidos
+  add column if not exists cantidad integer default 1,
   add column if not exists estado text default 'Nuevo',
   add column if not exists precio numeric default 0,
   add column if not exists adelanto numeric default 0,
@@ -905,11 +923,11 @@ alter table pedidos
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <div>
               <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>URL del proyecto</div>
-              <input value={syncCfg.url} onChange={e=>setSyncCfg(p=>({...p,url:e.target.value.trim()}))} placeholder="https://xxxx.supabase.co" style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
+              <input value={syncCfg.url} onChange={e=>setSyncCfg(p=>({...p,url:e.target.value}))} onBlur={e=>setSyncCfg(p=>({...p,url:e.target.value.trim()}))} placeholder="https://xxxx.supabase.co" style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
             </div>
             <div>
               <div style={{fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:"#7a6a5a",marginBottom:4}}>API Key (anon)</div>
-              <input type="password" value={syncCfg.key} onChange={e=>setSyncCfg(p=>({...p,key:e.target.value.trim()}))} placeholder="eyJhbGci…" style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
+              <input type="password" value={syncCfg.key} onChange={e=>setSyncCfg(p=>({...p,key:e.target.value}))} onBlur={e=>setSyncCfg(p=>({...p,key:e.target.value.trim()}))} placeholder="eyJhbGci…" style={{width:"100%",padding:"9px 11px",border:"1.5px solid #ccc",borderRadius:8,fontSize:13,background:"#fff",color:"#1a1a1a",boxSizing:"border-box",fontFamily:"monospace"}}/>
             </div>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",border:"1px solid #e0d8cc",borderRadius:8,background:"#fff"}}>
               <div>
@@ -940,9 +958,11 @@ alter table pedidos
           </div>
         </>}
       </div>
-      <div style={{padding:"12px 18px",borderTop:"1px solid #e0d8cc",background:"#f5f0e8",borderRadius:"0 0 14px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-        <span style={{fontSize:11,color:"#9a8070"}}>Los cambios se guardan automáticamente</span>
-        <button onClick={()=>{saveAI();persist(SK.settings,cfg);setProducts(localProducts);persist(SK.products,localProducts);const cleanEstados=localEstados.map(s=>s.trim()).filter(Boolean);if(cleanEstados.length){setEstados(cleanEstados);persist(SK.estados,cleanEstados);}alert("✓ Configuración guardada correctamente");onClose();}} style={{padding:"10px 22px",background:"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>Guardar y cerrar</button>
+      <div style={{borderTop:"1px solid #e0d8cc",background:"#f5f0e8",flexShrink:0}}>
+        <div style={{padding:"12px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8,maxWidth:640,margin:"0 auto",width:"100%",boxSizing:"border-box"}}>
+          <span style={{fontSize:11,color:"#9a8070"}}>Los cambios se guardan al hacer clic en Guardar</span>
+          <button onClick={()=>{saveAI();persist(SK.settings,cfg);setProducts(localProducts);persist(SK.products,localProducts);const cleanEstados=localEstados.map(s=>s.trim()).filter(Boolean);if(cleanEstados.length){setEstados(cleanEstados);persist(SK.estados,cleanEstados);}onClose();}} style={{padding:"10px 22px",background:"#c0532a",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>✓ Guardar cambios</button>
+        </div>
       </div>
     </div>
   </div>);
@@ -980,6 +1000,7 @@ function SeguimientoModal({order,estados,onSave,onClose}){
             <div>{lbl("DNI")}{ro(f.dni)}</div>
             <div>{lbl("Producto")}{ro(f.producto)}</div>
             <div>{lbl("Agencia")}{ro(f.agencia)}</div>
+            {(f.cantidad||1)>1&&<div>{lbl("Cantidad")}{ro(`${f.cantidad} unidades`)}</div>}
             <div style={{gridColumn:"1 / -1"}}>{lbl("Destino")}{ro(f.destino)}</div>
           </div>
         </div>
@@ -1273,8 +1294,11 @@ function App(){
     {tab==="form"&&<FormTab onAdd={addOrder} cfg={cfg} products={products}/>}
   </div>);
 
-  const ListPanel=()=>(<div style={{display:"flex",flexDirection:"column",minHeight:0,flex:1,overflow:"hidden"}}>
-    <div style={{padding:"10px 16px 8px",fontSize:9.5,textTransform:"uppercase",letterSpacing:".12em",color:"#9a8070",fontWeight:700,fontFamily:"monospace",flexShrink:0,borderBottom:"1px solid #e0d8cc",background:"#f5f0e8"}}>Cola · {orders.length}</div>
+  const ListPanel=()=>{const sinDni=orders.filter(o=>!o.dni||!String(o.dni).trim()).length;return(<div style={{display:"flex",flexDirection:"column",minHeight:0,flex:1,overflow:"hidden"}}>
+    <div style={{padding:"8px 16px",fontSize:9.5,textTransform:"uppercase",letterSpacing:".12em",color:"#9a8070",fontWeight:700,fontFamily:"monospace",flexShrink:0,borderBottom:"1px solid #e0d8cc",background:"#f5f0e8",display:"flex",alignItems:"center",gap:8}}>
+      <span>Cola · {orders.length}</span>
+      {sinDni>0&&<span title={`${sinDni} pedido${sinDni!==1?"s":""} sin DNI`} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"2px 7px",background:"#fef2f2",border:"1.5px solid #f5b8b8",borderRadius:999,fontSize:9,color:"#9b2020",fontWeight:700,cursor:"default"}}>⚠ {sinDni} sin DNI</span>}
+    </div>
     <div style={{flex:1,overflowY:"auto",padding:"6px 10px 14px"}}>
       {orders.length===0?<div style={{padding:"28px 18px",textAlign:"center",color:"#9a8a7a",fontSize:14,lineHeight:1.6}}><div style={{fontSize:32,marginBottom:10}}>📦</div>Sin pedidos.</div>
       :orders.map((o,i)=>{const isCur=Math.floor(i/PER_PAGE)+1===page;return(<div key={o.id} onClick={()=>{setPage(Math.floor(i/PER_PAGE)+1);if(isMobile)setView("preview");}} style={{display:"flex",gap:8,alignItems:"center",padding:"10px",borderRadius:8,border:`1.5px solid ${isCur?"#c0a888":"#e0d8cc"}`,cursor:"pointer",marginBottom:6,background:isCur?"#fff7ef":"#fff",transition:".11s"}}>
@@ -1283,6 +1307,8 @@ function App(){
           <div style={{display:"flex",alignItems:"center",gap:5}}>
             <div style={{fontSize:14,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",color:"#1c1a17",flex:1,minWidth:0}}>{o.nombres||<span style={{color:"#aaa",fontWeight:400}}>(sin nombre)</span>}</div>
             {o.estado&&<span title={o.estado} style={{width:8,height:8,borderRadius:"50%",background:colorForEstado(o.estado),flexShrink:0}}/>}
+            {(!o.dni||!String(o.dni).trim())&&<span title="Sin DNI" style={{width:16,height:16,borderRadius:"50%",background:"#fef2f2",border:"1.5px solid #f5b8b8",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#9b2020",fontWeight:700,flexShrink:0}}>!</span>}
+            {(o.cantidad||1)>1&&<span style={{padding:"1px 5px",background:"#fff7ef",border:"1px solid #e8c880",borderRadius:4,fontSize:9,color:"#7a4a00",fontWeight:700,flexShrink:0}}>×{o.cantidad}</span>}
           </div>
           <div style={{fontSize:12,color:"#8a7a6a",marginTop:2,fontFamily:"monospace",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.agencia||o.destino||"—"}</div>
         </div>
@@ -1292,7 +1318,7 @@ function App(){
         </div>
       </div>);})}
     </div>
-  </div>);
+  </div>);};
 
   const PreviewPanel=()=>(<div style={{display:"flex",flexDirection:"column",overflow:"hidden",flex:1}}>
     <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 16px",borderBottom:"2px solid #d0c8bc",background:"#fdfaf6",flexShrink:0,flexWrap:"wrap"}}>
@@ -1326,39 +1352,39 @@ function App(){
   const SegPanel=()=>(<SeguimientoView orders={orders} estados={estados} segView={segView} setSegView={setSegView} segFilter={segFilter} setSegFilter={setSegFilter} onOpen={setSeguimientoOrder} onChangeEstado={changeEstado} accent={A}/>);
 
   if(isDesktop)return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#e8e2d8"}}>
-    <TopBar/>
+    {TopBar()}
     {mode==="rotulador"?<div style={{flex:1,display:"grid",gridTemplateColumns:"390px 1fr",minHeight:0,overflow:"hidden"}}>
       <div style={{borderRight:"2px solid #d0c8bc",display:"flex",flexDirection:"column",overflow:"hidden",background:"#faf6f0"}}>
-        <div style={{overflowY:"auto",maxHeight:"58%",background:"#fdfaf6",borderBottom:"2px solid #d0c8bc"}}><InputPanel/></div>
-        <ListPanel/>
+        <div style={{overflowY:"auto",maxHeight:"58%",background:"#fdfaf6",borderBottom:"2px solid #d0c8bc"}}>{InputPanel()}</div>
+        {ListPanel()}
       </div>
-      <PreviewPanel/>
-    </div>:<div style={{flex:1,minHeight:0,overflow:"hidden",display:"flex"}}><SegPanel/></div>}
-    <Modals/>
+      {PreviewPanel()}
+    </div>:<div style={{flex:1,minHeight:0,overflow:"hidden",display:"flex"}}>{SegPanel()}</div>}
+    {Modals()}
   </div>);
 
   if(isTablet)return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#e8e2d8"}}>
-    <TopBar/>
+    {TopBar()}
     {mode==="rotulador"?<div style={{flex:1,display:"grid",gridTemplateColumns:"310px 1fr",minHeight:0,overflow:"hidden"}}>
       <div style={{borderRight:"2px solid #d0c8bc",display:"flex",flexDirection:"column",overflow:"hidden",background:"#faf6f0"}}>
         <div style={{display:"flex",borderBottom:"1px solid #d0c8bc",background:"#f5f0e8",flexShrink:0}}>
           {[["input","➕ Nuevo"],["list","📦 "+orders.length]].map(([v,l])=><button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"9px",border:"none",borderBottom:`3px solid ${view===v?A:"transparent"}`,background:"transparent",fontSize:12,fontWeight:view===v?700:500,color:view===v?A:"#7a6a5a",cursor:"pointer"}}>{l}</button>)}
         </div>
-        <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>{view==="input"?<InputPanel/>:<ListPanel/>}</div>
+        <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>{view==="input"?InputPanel():ListPanel()}</div>
       </div>
-      <PreviewPanel/>
-    </div>:<div style={{flex:1,minHeight:0,overflow:"hidden",display:"flex"}}><SegPanel/></div>}
-    <Modals/>
+      {PreviewPanel()}
+    </div>:<div style={{flex:1,minHeight:0,overflow:"hidden",display:"flex"}}>{SegPanel()}</div>}
+    {Modals()}
   </div>);
 
   return(<div style={{fontFamily:"Inter,system-ui,sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",background:"#faf6f0",paddingBottom:65}}>
-    <TopBar/>
+    {TopBar()}
     {mode==="rotulador"?<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-      {view==="input"&&<div style={{flex:1,overflowY:"auto"}}><InputPanel/></div>}
-      {view==="list"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",background:"#faf6f0"}}><ListPanel/></div>}
-      {view==="preview"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}><PreviewPanel/></div>}
-    </div>:<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}><SegPanel/></div>}
-    <MobileNav/><Modals/>
+      {view==="input"&&<div style={{flex:1,overflowY:"auto"}}>{InputPanel()}</div>}
+      {view==="list"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column",background:"#faf6f0"}}>{ListPanel()}</div>}
+      {view==="preview"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>{PreviewPanel()}</div>}
+    </div>:<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>{SegPanel()}</div>}
+    {MobileNav()}{Modals()}
   </div>);
 }
 
